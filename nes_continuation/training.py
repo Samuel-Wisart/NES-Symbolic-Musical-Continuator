@@ -2,6 +2,8 @@
 
 import json
 import math
+import platform
+import statistics
 import tempfile
 import time
 from dataclasses import asdict
@@ -13,7 +15,7 @@ from torch.utils.data import DataLoader
 
 from .data import NESWindows, collate_windows
 from .model import ModelConfig, NESTransformer
-from .representation import PAD, VOCAB
+from .representation import PAD, ROOT, VOCAB
 
 # Versão 2: vocabulário do step01 (VOCAB) no lugar dos EVENTS do tokenizador antigo.
 CHECKPOINT_VERSION = 2
@@ -69,23 +71,44 @@ def token_loss(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     )
 
 
-def train_epoch(model, batches, optimizer, device, bf16: bool, log_every: int) -> float:
+def autocast_dtype(device: torch.device) -> torch.dtype | None:
+    """BF16 nas GPUs que suportam; FP16 (com GradScaler) nas demais GPUs; FP32 na CPU."""
+    if device.type != "cuda":
+        return None
+    if torch.cuda.is_bf16_supported(including_emulation=False):
+        return torch.bfloat16
+    return torch.float16
+
+
+def precision_name(amp_dtype: torch.dtype | None) -> str:
+    return {torch.bfloat16: "BF16 misto", torch.float16: "FP16 misto"}.get(amp_dtype, "FP32")
+
+
+def train_step(model, inputs, targets, optimizer, scaler, device, amp_dtype) -> tuple[torch.Tensor, int]:
+    """Um passo de otimização; devolve a soma da loss do lote e o número de tokens-alvo."""
+    tokens = int(targets.ne(PAD).sum())
+    optimizer.zero_grad(set_to_none=True)
+    inputs = inputs.to(device, non_blocking=True)
+    targets = targets.to(device, non_blocking=True)
+    with torch.autocast(device_type=device.type, dtype=amp_dtype or torch.bfloat16, enabled=amp_dtype is not None):
+        loss = token_loss(model(inputs), targets)
+    scaler.scale(loss / tokens).backward()
+    scaler.unscale_(optimizer)
+    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+    scaler.step(optimizer)
+    scaler.update()
+    return loss.detach(), tokens
+
+
+def train_epoch(model, batches, optimizer, scaler, device, amp_dtype, log_every: int) -> float:
     model.train()
     loss_sum = torch.zeros((), device=device)
     total_tokens = 0
     start = time.monotonic()
     for step, (inputs, targets) in enumerate(batches, 1):
-        tokens = int(targets.ne(PAD).sum())
+        loss, tokens = train_step(model, inputs, targets, optimizer, scaler, device, amp_dtype)
         total_tokens += tokens
-        optimizer.zero_grad(set_to_none=True)
-        inputs = inputs.to(device, non_blocking=True)
-        targets = targets.to(device, non_blocking=True)
-        with torch.autocast(device_type=device.type, dtype=torch.bfloat16, enabled=bf16):
-            loss = token_loss(model(inputs), targets)
-        (loss / tokens).backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        optimizer.step()
-        loss_sum += loss.detach()
+        loss_sum += loss
         if step % log_every == 0 or step == len(batches):
             elapsed = time.monotonic() - start
             average = loss_sum.item() / total_tokens
@@ -128,14 +151,73 @@ def show_metrics(split: str, metrics: dict) -> None:
     )
 
 
+def portable_path(path: Path) -> str:
+    """Caminho relativo à raiz do repositório, para retomar o treino em outra máquina."""
+    try:
+        return path.resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        return str(path.resolve())
+
+
+def device_name(device: torch.device) -> str:
+    if device.type == "cuda":
+        return torch.cuda.get_device_name(device)
+    return f"{device.type} ({platform.processor() or platform.machine()})"
+
+
+def synchronize(device: torch.device) -> None:
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+
+
+def benchmark(model, train_set, valid_set, optimizer, scaler, device, amp_dtype, args) -> None:
+    """Mede segundos por lote em lotes sorteados do treino e estima o tempo de uma época."""
+    warmup = 3
+    batches = make_loader(train_set, args.batch_size, device, args.seed)
+    valid_batches = make_loader(valid_set, args.batch_size, device)
+    if device.type == "cuda":
+        torch.cuda.reset_peak_memory_stats(device)
+    model.train()
+    times = []
+    for index, (inputs, targets) in enumerate(batches):
+        if index >= warmup + args.benchmark:
+            break
+        synchronize(device)
+        start = time.monotonic()
+        train_step(model, inputs, targets, optimizer, scaler, device, amp_dtype)
+        synchronize(device)
+        if index >= warmup:
+            times.append(time.monotonic() - start)
+
+    # Validação: mede alguns lotes e extrapola.
+    valid_sample = min(10, len(valid_batches))
+    start = time.monotonic()
+    score(model, (batch for _, batch in zip(range(valid_sample), valid_batches)), device)
+    synchronize(device)
+    valid_seconds = (time.monotonic() - start) / valid_sample * len(valid_batches)
+
+    per_batch = statistics.mean(times)
+    epoch_seconds = per_batch * len(batches) + valid_seconds
+    memory = ""
+    if device.type == "cuda":
+        memory = f" | pico de memória {torch.cuda.max_memory_allocated(device) / 2**30:.2f} GiB"
+    print(
+        f"benchmark: {len(times)} lotes de {args.batch_size} | {per_batch:.3f} s/lote "
+        f"(mín {min(times):.3f}, máx {max(times):.3f}){memory}\n"
+        f"estimativa por época: {len(batches)} lotes x {per_batch:.3f} s + validação ~{valid_seconds / 60:.1f} min "
+        f"= ~{epoch_seconds / 60:.1f} min ({epoch_seconds / 3600:.2f} h)",
+        flush=True,
+    )
+
+
 def train(args, device: torch.device) -> None:
     latest = args.run_dir / "last.pt"
     best = args.run_dir / "best.pt"
-    if not args.resume and (latest.exists() or best.exists()):
+    if not args.benchmark and not args.resume and (latest.exists() or best.exists()):
         raise ValueError("Já há checkpoints em --run-dir. Use --resume ou outra pasta.")
 
     run_config = {
-        "data": str(args.data.resolve()),
+        "data": portable_path(args.data),
         "train_limit": args.train_limit,
         "valid_limit": args.valid_limit,
         "batch_size": args.batch_size,
@@ -146,7 +228,7 @@ def train(args, device: torch.device) -> None:
     best_loss = math.inf
     history = []
     torch.manual_seed(args.seed)
-    if args.resume:
+    if args.resume and not args.benchmark:
         checkpoint = load_checkpoint(latest)
         if checkpoint["run_config"] != run_config:
             raise ValueError("Repita os argumentos originais de dados, lote, taxa e semente ao retomar.")
@@ -162,9 +244,10 @@ def train(args, device: torch.device) -> None:
         print(f"Treino já concluído até a época {start_epoch - 1}. Aumente --epochs para continuar.")
         return
 
-    args.run_dir.mkdir(parents=True, exist_ok=True)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.01)
-    if args.resume:
+    amp_dtype = autocast_dtype(device)
+    scaler = torch.amp.GradScaler(device.type, enabled=amp_dtype == torch.float16)
+    if args.resume and not args.benchmark:
         optimizer.load_state_dict(checkpoint["optimizer"])
         torch.set_rng_state(checkpoint["cpu_rng"])
         if device.type == "cuda" and checkpoint["cuda_rng"] is not None:
@@ -174,19 +257,38 @@ def train(args, device: torch.device) -> None:
     train_set = make_dataset(args.data, "train", context, args.train_limit)
     valid_set = make_dataset(args.data, "valid", context, args.valid_limit)
     valid_batches = make_loader(valid_set, args.batch_size, device)
-    bf16 = device.type == "cuda" and torch.cuda.is_bf16_supported(including_emulation=False)
     params = sum(parameter.numel() for parameter in model.parameters())
     print(
-        f"{device} | {'BF16 misto' if bf16 else 'FP32'} | {params:,} parâmetros | "
+        f"{device_name(device)} | {precision_name(amp_dtype)} | {params:,} parâmetros | "
         f"{math.ceil(len(train_set) / args.batch_size)} lotes de treino/época | "
         f"{len(valid_batches)} lotes de validação/época",
         flush=True,
     )
+    if args.benchmark:
+        benchmark(model, train_set, valid_set, optimizer, scaler, device, amp_dtype, args)
+        return
+
+    # Informações da execução para o relatório (reescritas a cada início ou retomada).
+    args.run_dir.mkdir(parents=True, exist_ok=True)
+    run_info = {
+        "device": device_name(device),
+        "precision": precision_name(amp_dtype),
+        "torch": torch.__version__,
+        "python": platform.python_version(),
+        "parameters": params,
+        "model_config": asdict(model.config),
+        "run_config": run_config,
+        "epochs_requested": args.epochs,
+        "train": {"songs": len(train_set.songs), "windows": len(train_set), "targets": train_set.target_count},
+        "valid": {"songs": len(valid_set.songs), "windows": len(valid_set), "targets": valid_set.target_count},
+        "batches_per_epoch": math.ceil(len(train_set) / args.batch_size),
+    }
+    (args.run_dir / "run_info.json").write_text(json.dumps(run_info, indent=2) + "\n", encoding="utf-8")
     for epoch in range(start_epoch, args.epochs + 1):
         print(f"Época {epoch}/{args.epochs}", flush=True)
         start = time.monotonic()
         batches = make_loader(train_set, args.batch_size, device, args.seed + epoch)
-        train_loss = train_epoch(model, batches, optimizer, device, bf16, args.log_every)
+        train_loss = train_epoch(model, batches, optimizer, scaler, device, amp_dtype, args.log_every)
         metrics = score(model, valid_batches, device)
         show_metrics("valid", metrics)
         if not math.isfinite(train_loss) or not math.isfinite(metrics["loss"]):

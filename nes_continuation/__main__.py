@@ -58,6 +58,10 @@ def main() -> None:
     fit.add_argument("--lr", type=positive_float, default=3e-4)
     fit.add_argument("--seed", type=nonnegative_int, default=42)
     fit.add_argument("--log-every", type=positive_int, default=50)
+    fit.add_argument(
+        "--benchmark", type=nonnegative_int, default=0,
+        help="mede N lotes, estima o tempo por época e sai sem salvar nada",
+    )
     fit.add_argument("--train-limit", type=positive_int, help="máximo de arquivos do treino")
     fit.add_argument("--valid-limit", type=positive_int, help="máximo de arquivos da validação")
     config = ModelConfig()
@@ -96,6 +100,8 @@ def main() -> None:
     if (device == "cuda" and not cuda) or (device == "mps" and not mps):
         parser.error(f"{device} indisponível nesta instalação do PyTorch")
     torch.set_num_threads(args.threads or min(4, torch.get_num_threads()))
+    # TF32 nas multiplicações FP32 (avaliação) em GPUs que suportam.
+    torch.set_float32_matmul_precision("high")
     try:
         args.handler(args, torch.device(device))
     except (ValueError, OSError) as error:
