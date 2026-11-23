@@ -9,3 +9,6 @@ data/processed/*
 
 .DS_Store
 Thumbs.db
+# Checkpoints e logs de treino; áudio gerado (JSONs, MIDI e figuras pequenas são versionados)
+runs/
+results/generated/**/*.wav

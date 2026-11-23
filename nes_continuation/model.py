@@ -6,7 +6,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from .tokenizer import VOCAB_SIZE
+# len(VOCAB) do step01: os 1155 tokens, inclusive os que nunca aparecem nos dados.
+from .representation import VOCAB_SIZE
 
 
 @dataclass(frozen=True)

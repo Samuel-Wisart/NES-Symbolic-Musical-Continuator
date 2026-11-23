@@ -7,6 +7,7 @@ from pathlib import Path
 import torch
 
 from .model import ModelConfig
+from .representation import TOKENS_DIR
 from .sampling import generate
 from .training import evaluate, train
 
@@ -46,7 +47,7 @@ def main() -> None:
     common.add_argument("--device", choices=("auto", "cpu", "cuda", "mps"), default="auto")
     common.add_argument("--threads", type=positive_int, help="threads PyTorch (padrão: até 4)")
     data = argparse.ArgumentParser(add_help=False)
-    data.add_argument("--data", type=Path, default=Path("nesmdb_midi"))
+    data.add_argument("--data", type=Path, default=TOKENS_DIR, help="pasta com os .npz do step01 por partição")
     data.add_argument("--batch-size", type=positive_int, default=8)
 
     fit = commands.add_parser("train", parents=[common, data], help="treina e salva checkpoints")
@@ -75,8 +76,8 @@ def main() -> None:
     gen = commands.add_parser("generate", parents=[common], help="gera MIDI a partir de um prompt")
     gen.set_defaults(handler=generate)
     gen.add_argument("--checkpoint", type=Path, required=True)
-    gen.add_argument("--prompt", type=Path, required=True)
-    gen.add_argument("--prompt-seconds", type=positive_float, help="usa apenas o início do MIDI")
+    gen.add_argument("--prompt", type=Path, required=True, help=".npz de tokens do step01 ou MIDI original")
+    gen.add_argument("--prompt-seconds", type=positive_float, help="usa apenas os primeiros segundos da música")
     gen.add_argument("--output", type=Path, required=True)
     gen.add_argument("--wav", action="store_true", help="gera também um WAV ao lado do MIDI")
     gen.add_argument("--temperature", type=positive_float, default=1.0)
@@ -84,7 +85,7 @@ def main() -> None:
     gen.add_argument("--seed", type=nonnegative_int, default=42)
     gen.add_argument("--min-seconds", type=nonnegative_float, default=2.0, help="aceita EOS após este tempo de continuação")
     gen.add_argument("--max-seconds", type=positive_float, default=12.0, help="duração musical máxima da continuação")
-    gen.add_argument("--max-new-tokens", type=positive_int, default=1024)
+    gen.add_argument("--max-new-tokens", type=nonnegative_int, default=0, help="0 = sem limite (a duração já limita)")
 
     args = parser.parse_args()
     cuda = torch.cuda.is_available()

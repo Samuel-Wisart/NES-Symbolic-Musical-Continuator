@@ -9,15 +9,15 @@ from pathlib import Path
 
 import mido
 
-from .tokenizer import VOICES
-
 SAMPLE_RATE = 24_000
+# Canal MIDI -> voz (0 = p1, 1 = p2, 2 = tr, 3 = no), como o representation.write_midi exporta.
+CHANNEL_TO_VOICE = {0: 0, 1: 1, 2: 2, 9: 3}
 
 
 def render_wav(midi_path: Path, wav_path: Path) -> None:
     midi = mido.MidiFile(midi_path)
     audio = array("f", [0.0]) * max(1, math.ceil(midi.length * SAMPLE_RATE))
-    channels = {voice.channel: i for i, voice in enumerate(VOICES)}
+    channels = CHANNEL_TO_VOICE
     active: dict[int, tuple[int, int]] = {}
     rng = random.Random(0)
 

@@ -1,26 +1,27 @@
-"""Janelas para previsão do próximo token nas partições oficiais."""
+"""Janelas para previsão do próximo token nas partições oficiais.
 
-from array import array
+Lê os tokens já preparados pelo step01 (um .npz por música, chave "ids").
+"""
+
 from pathlib import Path
 
+import numpy as np
 import torch
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 
-from .tokenizer import EVENTS, PAD, encode_midi
+from .representation import PAD, TOKENS_DIR, load_ids, token_files
 
 
 class NESWindows(Dataset):
     def __init__(
         self,
-        root: str | Path,
-        split: str,
+        root: str | Path = TOKENS_DIR,
+        split: str = "train",
         context: int = 1024,
         stride: int | None = None,
         limit: int | None = None,
     ) -> None:
-        if split not in {"train", "valid", "test"}:
-            raise ValueError("Use uma partição oficial: train, valid ou test")
         if context < 1:
             raise ValueError("context deve ser positivo")
         if stride is None:
@@ -30,28 +31,31 @@ class NESWindows(Dataset):
         if limit is not None and limit < 1:
             raise ValueError("limit deve ser positivo")
 
-        folder = Path(root) / split
-        paths = sorted(path for path in folder.iterdir() if path.suffix.lower() in {".mid", ".midi"})
+        paths = token_files(split, root)[:limit]
         self.context = context
-        self.songs: list[array] = []
+        self.names: list[str] = []
+        self.songs: list[np.ndarray] = []
         self.windows: list[tuple[int, int]] = []
-        self.skipped_silent = 0
-        for path in paths[:limit]:
-            tokens = encode_midi(path)
-            if not any(EVENTS[token][0] == "ON" for token in tokens):
-                self.skipped_silent += 1
+        # Número de alvos (todos os tokens depois do BOS); com stride = context
+        # cada alvo aparece em exatamente uma janela.
+        self.target_count = 0
+        for path in paths:
+            tokens = load_ids(path).astype(np.uint16)
+            if len(tokens) < 2:
                 continue
 
             song_index = len(self.songs)
-            self.songs.append(array("H", tokens))
+            self.names.append(path.stem)
+            self.songs.append(tokens)
             target_count = len(tokens) - 1
+            self.target_count += target_count
             for start in range(0, target_count, stride):
                 self.windows.append((song_index, start))
                 if start + context >= target_count:
                     break
 
         if not self.windows:
-            raise ValueError(f"Nenhuma música com notas encontrada em {folder}")
+            raise ValueError(f"Nenhuma música encontrada em {Path(root) / split}")
 
     def __len__(self) -> int:
         return len(self.windows)
@@ -59,7 +63,7 @@ class NESWindows(Dataset):
     def __getitem__(self, index: int) -> torch.Tensor:
         song_index, start = self.windows[index]
         tokens = self.songs[song_index][start:start + self.context + 1]
-        return torch.tensor(tokens, dtype=torch.long)
+        return torch.from_numpy(tokens.astype(np.int64))
 
 
 def collate_windows(windows: list[torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:

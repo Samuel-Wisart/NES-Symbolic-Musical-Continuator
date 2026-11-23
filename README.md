@@ -6,12 +6,16 @@ Projeto de geração musical autoregressiva usando o dataset NES-MDB. A tarefa e
 data/
   raw/                         # NES-MDB original
   processed/                   # dados tokenizados
+nes_continuation/              # Transformer: modelo, treino, geração e áudio
+  representation.py            # ponte para a representação do step01
 results/                       # resultados dos experimentos
+runs/                          # checkpoints e logs de treino (não versionado)
 scripts/
   step01_prepare_dataset.py    # preparação e tokenização
   step02_analyze_dataset.py    # estatísticas do dataset e da representação
 tests/
   test01_dataset_tests.py      # testes da representação
+  test02_transformer_tests.py  # testes do Transformer sobre os tokens do step01
 ```
 
 ## Ambiente
@@ -69,3 +73,17 @@ Os testes disponíveis são:
 
 ### test01_dataset_tests.py
 Valida os pontos essenciais da representação MIDI-Like antes do processamento completo do dataset, incluindo vocabulário, `encode -> decode`, quantização e `TIME_SHIFT`.
+
+### test02_transformer_tests.py
+Valida a adaptação do Transformer aos tokens do step01 (requer o dataset preparado): `.npz` igual a `encode(read_notes(mid))`, corte do prompt em exatamente N segundos, `decode -> MIDI -> read_notes -> encode`, cobertura das janelas, `forward` com os 1155 tokens e respeito à máscara de eventos válidos na geração.
+
+## Transformer
+O pacote `nes_continuation/` usa a mesma representação do step01 (importa `VOCAB`, `TO_ID`, `encode`, `decode` e `read_notes` de lá), com os 1155 tokens.
+
+```bash
+python -m nes_continuation train --run-dir runs/transformer --epochs 10
+python -m nes_continuation evaluate --checkpoint runs/transformer/best.pt --split valid
+python -m nes_continuation generate --checkpoint runs/transformer/best.pt \
+    --prompt data/processed/nesmdb/tokens/test/<musica>.npz --prompt-seconds 4 \
+    --output results/generated/exemplo.mid --wav
+```

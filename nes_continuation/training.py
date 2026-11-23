@@ -13,14 +13,15 @@ from torch.utils.data import DataLoader
 
 from .data import NESWindows, collate_windows
 from .model import ModelConfig, NESTransformer
-from .tokenizer import EVENTS, PAD
+from .representation import PAD, VOCAB
 
-CHECKPOINT_VERSION = 1
+# Versão 2: vocabulário do step01 (VOCAB) no lugar dos EVENTS do tokenizador antigo.
+CHECKPOINT_VERSION = 2
 
 
 def load_checkpoint(path: Path) -> dict:
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
-    if checkpoint.get("version") != CHECKPOINT_VERSION or checkpoint.get("events") != EVENTS:
+    if checkpoint.get("version") != CHECKPOINT_VERSION or checkpoint.get("vocab") != list(VOCAB):
         raise ValueError(f"Checkpoint incompatível com a versão ou o vocabulário atual: {path}")
     return checkpoint
 
@@ -46,7 +47,7 @@ def make_dataset(root: Path, split: str, context: int, limit: int | None) -> NES
     dataset = NESWindows(root, split, context=context, stride=stride, limit=limit)
     print(
         f"{split}: {len(dataset.songs)} músicas, {len(dataset)} janelas, "
-        f"{dataset.skipped_silent} sem ataques descartadas",
+        f"{dataset.target_count} tokens-alvo",
         flush=True,
     )
     return dataset
@@ -196,7 +197,7 @@ def train(args, device: torch.device) -> None:
         history.append({"epoch": epoch, "seconds": elapsed, "train_loss": train_loss, "valid": metrics})
         checkpoint = {
             "version": CHECKPOINT_VERSION,
-            "events": EVENTS,
+            "vocab": list(VOCAB),
             "model_config": asdict(model.config),
             "model": model.state_dict(),
             "optimizer": optimizer.state_dict(),
@@ -220,10 +221,12 @@ def train(args, device: torch.device) -> None:
         )
 
 
-def evaluate(args, device: torch.device) -> None:
+def evaluate(args, device: torch.device) -> dict:
     checkpoint = load_checkpoint(args.checkpoint)
     model = restore_model(checkpoint, device)
     dataset = make_dataset(args.data, args.split, model.config.context, args.limit)
     batches = make_loader(dataset, args.batch_size, device)
     print(f"{device} | checkpoint da época {checkpoint['epoch']}", flush=True)
-    show_metrics(args.split, score(model, batches, device))
+    metrics = score(model, batches, device)
+    show_metrics(args.split, metrics)
+    return metrics
