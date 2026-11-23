@@ -7,6 +7,7 @@ Testes da adaptação do Transformer à representação do step01.
 ### Imports
 from collections import Counter
 from itertools import product
+import random
 from pathlib import Path
 import sys
 import tempfile
@@ -18,14 +19,16 @@ import mido
 import numpy as np
 import torch
 
-from nes_continuation.data import NESWindows, collate_windows
+from nes_continuation.data import NESWindows, ScoringWindows, collate_scoring, collate_windows
 from nes_continuation.model import ModelConfig, NESTransformer
 from nes_continuation.representation import (
     BOS, CHANNELS, EOS, MIDI_DIR, PAD, SHIFT_STEPS, TIME_RESOLUTION_HZ, TO_ID, TOKENS_DIR, VOCAB,
-    NoteState, close_open_notes, cut_prompt, duration_steps, encode, load_ids, read_notes, token_files, write_midi,
+    NoteState, close_open_notes, cut_prompt, decode, duration_steps, encode, load_ids, read_notes,
+    reference_continuation, split_at_seconds, token_files, write_midi,
 )
 from nes_continuation.sampling import allowed_tokens, sample
 from step01_prepare_dataset import quantize_interval
+import protocol
 
 ### Constantes
 # Poucas músicas por teste, para a suíte rodar em segundos.
@@ -119,6 +122,54 @@ def test_prompt_cut_splits_time_shift():
     # Eventos exatamente no passo do corte ficam para a continuação.
     prompt = cut_prompt(ids, 0.5)
     assert [token_name(token) for token in prompt] == ["BOS", "NOTE_ON_p1_60", "TIME_SHIFT_32"]
+
+def test_split_and_reference():
+    """Confere se início + resto preserva as notas e se a referência começa pelo mesmo prompt."""
+    for path in long_test_songs(5):
+        ids = load_ids(path)
+        head, tail = split_at_seconds(ids, 4)
+
+        assert np.array_equal(head, cut_prompt(ids, 4))
+        assert decode(np.concatenate([head, tail])) == decode(ids)
+        assert duration_steps(head) + duration_steps(tail) == duration_steps(ids)
+
+        reference, prompt_length = reference_continuation(ids, 4, 12)
+        continuation = duration_steps(reference[prompt_length:])
+
+        assert np.array_equal(reference[:prompt_length], head)
+        assert continuation <= 12 * TIME_RESOLUTION_HZ + 1
+        assert continuation >= min(12 * TIME_RESOLUTION_HZ, duration_steps(tail))
+        assert reference[-1] == EOS and not NoteState(reference).open
+
+def test_scoring_windows():
+    """Confere se as janelas de avaliação pontuam cada alvo uma vez, com o histórico mínimo."""
+    context, stride = 64, 32
+    dataset = ScoringWindows(TOKENS_DIR, "test", context=context, stride=stride, limit=8)
+    scored = Counter()
+
+    for index in range(len(dataset)):
+        song, start, skip = dataset.windows[index]
+        _, targets = collate_scoring([dataset[index]])
+
+        for offset in np.flatnonzero(targets[0].numpy() != PAD):
+            assert offset >= skip
+            # Alvo `start + offset`: histórico de offset + 1 tokens nesta janela.
+            assert start == 0 or offset + 1 > context - stride
+            scored[song, start + offset] += 1
+
+    assert sum(scored.values()) == dataset.target_count
+    assert set(scored.values()) == {1}
+
+def test_protocol_prompt_list():
+    """Confere a lista fixa de prompts e a contagem de tokens do teste no protocol.py."""
+    files = token_files("test")
+    durations = {path.stem: duration_steps(load_ids(path)) for path in files}
+    eligible = sorted(name for name, steps in durations.items() if steps >= (protocol.PROMPT_SECONDS + 2) * TIME_RESOLUTION_HZ)
+
+    assert len(files) == protocol.TEST_SONGS
+    assert sum(len(load_ids(path)) - 1 for path in files) == protocol.TEST_TARGET_TOKENS
+    assert list(protocol.PROMPT_SONGS) == random.Random(protocol.SEED).sample(eligible, protocol.N_PROMPTS)
+    assert all(path.exists() for path in protocol.prompt_paths())
 
 def test_close_open_notes():
     """Confere se as notas abertas são fechadas sem criar notas de duração zero."""
@@ -235,9 +286,12 @@ def main():
         test_npz_matches_encode,
         test_prompt_cut_preserves_seconds,
         test_prompt_cut_splits_time_shift,
+        test_split_and_reference,
         test_close_open_notes,
         test_midi_round_trip,
         test_windows_cover_targets,
+        test_scoring_windows,
+        test_protocol_prompt_list,
         test_model_forward,
         test_sampled_tokens_obey_mask,
     ]

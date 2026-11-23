@@ -70,3 +70,64 @@ def collate_windows(windows: list[torch.Tensor]) -> tuple[torch.Tensor, torch.Te
     """Retorna entradas e alvos deslocados em uma posição, com PAD à direita."""
     padded = pad_sequence(windows, batch_first=True, padding_value=PAD)
     return padded[:, :-1].contiguous(), padded[:, 1:].contiguous()
+
+
+class ScoringWindows(Dataset):
+    """Janelas de avaliação em que cada token depois do BOS é pontuado exatamente uma vez.
+
+    As janelas andam `stride` tokens; cada uma pontua só os alvos que a anterior
+    ainda não pontuou. Com stride = context as janelas são disjuntas; com
+    stride < context, todo alvo fora da primeira janela de cada música tem pelo
+    menos context - stride tokens de histórico.
+    """
+
+    def __init__(
+        self,
+        root: str | Path = TOKENS_DIR,
+        split: str = "test",
+        context: int = 1024,
+        stride: int | None = None,
+        limit: int | None = None,
+    ) -> None:
+        stride = context if stride is None else stride
+        if not 1 <= stride <= context:
+            raise ValueError("stride deve estar entre 1 e context")
+
+        self.context = context
+        self.names: list[str] = []
+        self.songs: list[np.ndarray] = []
+        # (música, início, quantos alvos do começo da janela já foram pontuados)
+        self.windows: list[tuple[int, int, int]] = []
+        self.target_count = 0
+        for path in token_files(split, root)[:limit]:
+            tokens = load_ids(path).astype(np.uint16)
+            target_count = len(tokens) - 1
+            if target_count < 1:
+                continue
+
+            song_index = len(self.songs)
+            self.names.append(path.stem)
+            self.songs.append(tokens)
+            self.target_count += target_count
+            start = scored = 0
+            while scored < target_count:
+                end = min(start + context, target_count)
+                self.windows.append((song_index, start, scored - start))
+                scored = end
+                start += stride
+
+    def __len__(self) -> int:
+        return len(self.windows)
+
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, int]:
+        song_index, start, skip = self.windows[index]
+        tokens = self.songs[song_index][start:start + self.context + 1]
+        return torch.from_numpy(tokens.astype(np.int64)), skip
+
+
+def collate_scoring(windows: list[tuple[torch.Tensor, int]]) -> tuple[torch.Tensor, torch.Tensor]:
+    """Como collate_windows, mas troca por PAD (ignorado na loss) os alvos já pontuados."""
+    inputs, targets = collate_windows([tokens for tokens, _ in windows])
+    for row, (_, skip) in enumerate(windows):
+        targets[row, :skip] = PAD
+    return inputs, targets

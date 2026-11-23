@@ -138,37 +138,56 @@ class NoteState:
         return [(voice, pitch, start) for (voice, pitch), starts in sorted(self.open.items()) for start in starts]
 
 ### Prompt e fechamento
-def cut_prompt(ids, seconds):
-    """Primeiros `seconds` segundos da música, sem EOS e com as notas abertas.
+def split_at_seconds(ids, seconds):
+    """Divide a sequência em (início, resto) exatamente em `seconds` segundos.
 
-    O corte cai exatamente em seconds * TIME_RESOLUTION_HZ passos: se um
-    TIME_SHIFT atravessa esse ponto, ele é dividido e só a primeira parte entra.
-    Eventos no próprio passo do corte ficam para a continuação. A soma dos
-    TIME_SHIFT do prompt é, portanto, igual à duração pedida.
+    O corte cai em seconds * TIME_RESOLUTION_HZ passos: se um TIME_SHIFT
+    atravessa esse ponto, ele é dividido entre o início e o resto. Eventos no
+    próprio passo do corte ficam no resto. O início não tem EOS e pode terminar
+    com notas abertas; início + resto descreve as mesmas notas que `ids`.
     """
     ids = [int(token) for token in ids]
     stop = seconds_to_steps(seconds)
 
     if stop < 1:
-        raise ValueError("O prompt precisa ter pelo menos um passo")
+        raise ValueError("O corte precisa de pelo menos um passo")
 
-    prompt = []
     step = 0
 
-    for token in ids:
+    for index, token in enumerate(ids):
         if token == EOS:
             break
 
         shift = int(SHIFT_STEPS[token])
 
         if shift and step + shift >= stop:
-            prompt.append(int(SHIFT_IDS[stop - step - 1]))
-            return np.asarray(prompt, dtype=np.int64)
+            rest = step + shift - stop
+            head = ids[:index] + [int(SHIFT_IDS[stop - step - 1])]
+            tail = ([int(SHIFT_IDS[rest - 1])] if rest else []) + ids[index + 1:]
+            return np.asarray(head, dtype=np.int64), np.asarray(tail, dtype=np.int64)
 
-        prompt.append(token)
         step += shift
 
-    raise ValueError(f"A música tem {step / TIME_RESOLUTION_HZ:.2f} s, menos que os {seconds} s do prompt")
+    raise ValueError(f"A música tem {step / TIME_RESOLUTION_HZ:.2f} s, menos que os {seconds} s pedidos")
+
+def cut_prompt(ids, seconds):
+    """Primeiros `seconds` segundos da música, sem EOS e com as notas abertas.
+
+    A soma dos TIME_SHIFT do prompt é exatamente seconds * TIME_RESOLUTION_HZ.
+    """
+    return split_at_seconds(ids, seconds)[0]
+
+def reference_continuation(ids, prompt_seconds, gen_seconds):
+    """Prompt + os `gen_seconds` reais seguintes (ou até o fim da música), com as notas fechadas.
+
+    Devolve (ids, prompt_length) no mesmo formato da geração, para comparação.
+    """
+    prompt, rest = split_at_seconds(ids, prompt_seconds)
+
+    if duration_steps(rest) > seconds_to_steps(gen_seconds):
+        rest = split_at_seconds(rest, gen_seconds)[0]
+
+    return close_open_notes(np.concatenate([prompt, rest])), len(prompt)
 
 def close_open_notes(ids):
     """Fecha as notas abertas no fim da sequência e termina com EOS.
