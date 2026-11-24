@@ -1,29 +1,36 @@
 """
-step06_report_transformer
+step06_report
 
-Gera a figura de loss por época e o results/transformer/README.md a partir dos
-JSONs salvos pelo treino (step03), pela avaliação (step04) e pela geração (step05).
+Gera a figura de loss por época e o README de resultados de um modelo
+(Transformer ou LSTM) a partir dos JSONs salvos pelo treino (step03), pela
+avaliação (step04) e pela geração (step05).
 
-Entradas (em results/transformer/, copiadas pelo step04):
+    python scripts/step06_report.py --model transformer
+    python scripts/step06_report.py --model lstm
+
+Entradas (em resultados/<modelo>/, copiadas pelo step04):
     train_history.json, run_info.json, test_metrics.json
-    ../generated/transformer/summary.json (opcional)
+    ../amostras/<modelo>/summary.json (opcional)
 Saídas:
-    results/transformer/loss_curves.png
-    results/transformer/README.md
+    resultados/<modelo>/curvas_loss.png
+    resultados/<modelo>/README.md
 """
 
 ### Imports
 from pathlib import Path
-import argparse, json, math
+import argparse, json, logging, math
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-### Caminhos
-ROOT = Path(__file__).resolve().parents[1]
-RESULTS_DIR = ROOT / "results" / "transformer"
-GENERATION_SUMMARY = ROOT / "results" / "generated" / "transformer" / "summary.json"
+from protocol import GENERATED_DIR, MODELS, REFERENCE_NAME, RESULTS_DIR  # noqa: E402
+
+# A fonte preferida (Segoe UI) pode não existir; o aviso repetido do matplotlib não ajuda.
+logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
+
+### Nomes
+MODEL_NAMES = {"transformer": "Transformer", "lstm": "LSTM"}
 
 ### Estilo da figura
 # Paleta categórica validada (slots 1 e 2) e tinta/grade recessivas.
@@ -40,7 +47,7 @@ def read_json(path):
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 ### Figura
-def plot_losses(history, output):
+def plot_losses(history, output, name):
     """Loss de treino e validação (nats por token) por época, com a melhor época marcada."""
     epochs = [row["epoch"] for row in history]
     train = [row["train_loss"] for row in history]
@@ -52,9 +59,9 @@ def plot_losses(history, output):
     figure.patch.set_facecolor(SURFACE)
     axis.set_facecolor(SURFACE)
 
-    for name, values, label in (("train", train, "treino"), ("valid", valid, "validação")):
-        axis.plot(epochs, values, color=SERIES[name], linewidth=2, marker="o", markersize=5,
-                  markeredgecolor=SURFACE, markeredgewidth=1.5, label=label, zorder=3)
+    for series, values, label in (("train", train, "treino"), ("valid", valid, "validação")):
+        axis.plot(epochs, values, color=SERIES[series], linewidth=2, marker="o" if len(epochs) <= 30 else None,
+                  markersize=5, markeredgecolor=SURFACE, markeredgewidth=1.5, label=label, zorder=3)
         # Rótulo direto no fim da linha, em tinta de texto.
         axis.annotate(f"{label} {values[-1]:.3f}", (epochs[-1], values[-1]), xytext=(8, 0),
                       textcoords="offset points", va="center", color=INK_SECONDARY, fontsize=9)
@@ -65,7 +72,7 @@ def plot_losses(history, output):
 
     axis.set_xlabel("época", color=INK_SECONDARY)
     axis.set_ylabel("entropia cruzada (nats por token)", color=INK_SECONDARY)
-    axis.set_title("Transformer: loss por época", loc="left", color=INK_PRIMARY, fontsize=12, pad=28)
+    axis.set_title(f"{name}: loss por época", loc="left", color=INK_PRIMARY, fontsize=12, pad=28)
     axis.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
     axis.grid(axis="y", color=GRID, linewidth=0.8)
     axis.set_axisbelow(True)
@@ -118,7 +125,23 @@ def fmt_duration(seconds):
     hours, rest = divmod(round(seconds), 3600)
     return f"{hours} h {rest // 60:02d} min" if hours else f"{rest // 60} min {rest % 60:02d} s"
 
-def write_readme(history, run_info, test, generation, output):
+def architecture(config):
+    """Descrição da arquitetura a partir do model_config salvo no checkpoint."""
+    if config.get("arch", "transformer") == "lstm":
+        return (
+            f"LSTM empilhado (PyTorch nativo), com {config['layers']} camadas de largura {config['width']} "
+            f"(embedding e estado), dropout entre camadas, LayerNorm e projeção de saída compartilhada com o "
+            f"embedding de entrada. Treinado e avaliado nas mesmas janelas de {config['context']} tokens do "
+            "Transformer (o estado começa zerado em cada janela)."
+        )
+    return (
+        f"Transformer somente decodificador (PyTorch nativo), com {config['layers']} blocos pre-LN, "
+        f"largura {config['width']}, {config['heads']} cabeças de atenção causal, feed-forward de "
+        f"{4 * config['width']} (GELU), embeddings de posição aprendidos e projeção de saída "
+        f"compartilhada com o embedding de entrada. Contexto de {config['context']} tokens."
+    )
+
+def write_readme(model, history, run_info, test, generation, output):
     config = run_info["model_config"]
     run = run_info["run_config"]
     best = min(history, key=lambda row: row["valid"]["loss"])
@@ -126,17 +149,14 @@ def write_readme(history, run_info, test, generation, output):
     sliding, disjoint = test["sliding_windows"], test["disjoint_windows"]
 
     lines = [
-        "# Transformer: resultados",
+        f"# {MODEL_NAMES[model]}: resultados",
         "",
-        "Gerado por `scripts/step06_report_transformer.py` a partir de `train_history.json`,",
+        f"Gerado por `python scripts/step06_report.py --model {model}` a partir de `train_history.json`,",
         "`run_info.json`, `test_metrics.json` e do resumo da geração.",
         "",
         "## Arquitetura",
         "",
-        f"Transformer somente decodificador (PyTorch nativo), com {config['layers']} blocos pre-LN, "
-        f"largura {config['width']}, {config['heads']} cabeças de atenção causal, feed-forward de "
-        f"{4 * config['width']} (GELU), embeddings de posição aprendidos e projeção de saída "
-        f"compartilhada com o embedding de entrada. Contexto de {config['context']} tokens.",
+        architecture(config),
         "",
         f"- Vocabulário: 1155 tokens do step01 (MIDI-like, 64 passos/s, 4 vozes)",
         f"- Parâmetros: {inteiro(run_info['parameters'])}",
@@ -160,9 +180,9 @@ def write_readme(history, run_info, test, generation, output):
         "",
         f"**Melhor época (menor loss de validação): {best['epoch']}**, com loss {decimal(best['valid']['loss'], 4)}, "
         f"perplexidade {decimal(best['valid']['perplexity'], 2)} e acurácia {porcentagem(best['valid']['accuracy'])}. "
-        "O `best.pt` é o checkpoint dessa época.",
+        "O modelo entregue (`modelo.pt`) é o checkpoint dessa época.",
         "",
-        "![Loss por época](loss_curves.png)",
+        "![Loss por época](curvas_loss.png)",
         "",
         "## Teste",
         "",
@@ -189,8 +209,8 @@ def write_readme(history, run_info, test, generation, output):
             f"{len(songs)} continuações (protocolo em `scripts/protocol.py`): prompt de {protocol['prompt_seconds']} s "
             f"de uma música de teste, continuação de {protocol['gen_seconds']} s, temperatura {protocol['temperature']}, "
             f"top-k {protocol['top_k']}, máscara de eventos válidos. Em média {sum(tokens) / len(tokens):.0f} tokens "
-            f"por continuação (mín. {min(tokens)}, máx. {max(tokens)}). Arquivos em `results/generated/transformer/`; "
-            "referência real dos mesmos segundos em `results/generated/reference/`.",
+            f"por continuação (mín. {min(tokens)}, máx. {max(tokens)}). Arquivos em `resultados/amostras/{model}/`; "
+            f"referência real dos mesmos segundos em `resultados/amostras/{REFERENCE_NAME}/`.",
             "",
         ]
 
@@ -201,7 +221,7 @@ def write_readme(history, run_info, test, generation, output):
         "",
         "### Observações de escuta",
         "",
-        "_A preencher depois de ouvir os WAV de `results/generated/` (coerência com o prompt,",
+        "_A preencher depois de ouvir as amostras de `resultados/amostras/` (coerência com o prompt,",
         "repetição, uso das quatro vozes, ritmo)._",
         "",
     ]
@@ -210,20 +230,23 @@ def write_readme(history, run_info, test, generation, output):
 ### Execução
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--results-dir", type=Path, default=RESULTS_DIR)
-    parser.add_argument("--generation-summary", type=Path, default=GENERATION_SUMMARY)
+    parser.add_argument("--model", choices=MODELS, required=True, help="modelo do relatório")
+    parser.add_argument("--results-dir", type=Path, help="padrão: resultados/<modelo>/")
+    parser.add_argument("--generation-summary", type=Path, help="padrão: resultados/amostras/<modelo>/summary.json")
     args = parser.parse_args()
+    args.results_dir = args.results_dir or RESULTS_DIR / args.model
+    args.generation_summary = args.generation_summary or GENERATED_DIR / args.model / "summary.json"
 
     history = read_json(args.results_dir / "train_history.json")
     run_info = read_json(args.results_dir / "run_info.json")
     test = read_json(args.results_dir / "test_metrics.json")
     if not (history and run_info and test):
-        raise SystemExit("Faltam JSONs em results/transformer/. Rode antes o step04 (que copia os do treino).")
+        raise SystemExit(f"Faltam JSONs em {args.results_dir}. Rode antes o step04 (que copia os do treino).")
     if any(not math.isfinite(row["valid"]["loss"]) for row in history):
         raise SystemExit("O histórico tem loss não finita.")
 
-    plot_losses(history, args.results_dir / "loss_curves.png")
-    write_readme(history, run_info, test, read_json(args.generation_summary), args.results_dir / "README.md")
+    plot_losses(history, args.results_dir / "curvas_loss.png", MODEL_NAMES[args.model])
+    write_readme(args.model, history, run_info, test, read_json(args.generation_summary), args.results_dir / "README.md")
     print(f"Figura e README em {args.results_dir}")
 
 if __name__ == "__main__":

@@ -17,28 +17,39 @@ quarta-feira, 25/11/2026, 23:59.
   vocabulário; usar os 1155 tokens (mesmo os que nunca aparecem).
 - Partições oficiais. O teste só é usado na avaliação final (step04) e para
   tirar os prompts de geração.
-- Não versionar dados, checkpoints nem WAV (`data/`, `runs/`,
-  `results/generated/**/*.wav` no .gitignore). JSONs, MIDI e figuras pequenas podem.
-- Branch `transformer`, um commit por fase. Código e comentários em português,
+- Não versionar dados, checkpoints de treino nem WAV (`data/`, `runs/`,
+  `resultados/amostras/**/*.wav` no .gitignore). JSONs, MIDI, `.npz` das amostras e
+  figuras podem. Exceção pedida pelo usuário: os modelos exportados
+  `resultados/<modelo>/modelo.pt` (só pesos, ~20 MB) são versionados.
+- Branches: `main` (execução numa máquina comum e resultados), `execucao-slurm`
+  (a `main` + scripts do cluster SONIC), `transformer` e `lstm` (histórico do
+  desenvolvimento). Um commit por fase. Código e comentários em português,
   no estilo do Lucas (docstring com o nome do módulo, seções `### ...`).
 - Convenções: `scripts/stepXX_*.py`; `tests/testXX_*.py` executáveis com
   `python tests/arquivo.py`.
 
-## Estrutura do Transformer
+## Estrutura dos modelos neurais
 - `nes_continuation/representation.py`: ponte para o step01 + tabelas derivadas
   do VOCAB, `load_ids`, `split_at_seconds`/`cut_prompt`, `reference_continuation`,
   `NoteState` (notas abertas, FIFO como o `decode`), `close_open_notes`,
   `write_midi` (canais 0, 1, 2 e 9; 120 bpm, 480 ppq = 15 ticks por passo, exato).
 - `data.py`: `NESWindows` (treino, passo = contexto/2; validação, passo = contexto)
   e `ScoringWindows` (avaliação, cada alvo pontuado uma vez).
-- `model.py` (Luiza): decoder-only pre-LN, embeddings de posição aprendidos, saída
-  compartilhada com o embedding.
-- `training.py`: treino, checkpoint versão 2 (valida `vocab`), `--benchmark`,
-  BF16/FP16, `run_info.json`.
+- `model.py`: Transformer (Luiza) decoder-only pre-LN, embeddings de posição
+  aprendidos, saída compartilhada com o embedding; LSTM (`NESLSTM`, 2×512, mesma saída
+  compartilhada, FP32 dentro do autocast); `ModelConfig.arch` e `build_model`.
+- `training.py`: treino retomável (o mesmo comando começa ou continua, inclusive no
+  meio da época; `--do-zero` recomeça), checkpoint versão 2 (valida `vocab`),
+  `--benchmark`, BF16/FP16, `run_info.json`, `progresso.json`, `CONCLUIDO`,
+  `export_model` (modelo sem otimizador para `resultados/`). `stop.py`: Ctrl+C,
+  SIGTERM/SIGUSR1 e `PRAZO_EPOCH` salvam e saem.
 - `sampling.py`: `allowed_tokens` (máscara), `sample`, `save_generation`.
 - `audio.py` (Luiza): prévia WAV chiptune; vozes pelo canal MIDI.
-- `scripts/protocol.py`: protocolo compartilhado com o Markov.
-- `scripts/step03..06`: treino, avaliação, geração, relatório.
+- `scripts/protocol.py`: protocolo compartilhado com o Markov; pastas de `resultados/`
+  e `checkpoint_path(modelo)` (runs/<modelo>/best.pt ou resultados/<modelo>/modelo.pt).
+- `scripts/step03_train_{transformer,lstm}.py`: treino de cada modelo;
+  `step04_evaluate`, `step05_generate`, `step06_report` com `--model`;
+  `step07_compare` (comparação e estatísticas das amostras).
 
 ## Decisões tomadas
 - **Máscara de geração** (`sampling.allowed_tokens`): nunca PAD/BOS; NOTE_ON só
@@ -56,10 +67,11 @@ quarta-feira, 25/11/2026, 23:59.
   amostrados e `stop_reason` diz se houve EOS.
 - **Protocolo**: PROMPT_SECONDS 4, GEN_SECONDS 12, **MIN_GEN_SECONDS = 12** (EOS
   proibido: toda continuação tem exatamente 12 s, para comparar segmentos de mesma
-  duração), N_PROMPTS 50, SEED 42, temperatura 1.0, top-k 32, semente
-  `SEED + i` para a i-ésima música. A lista `PROMPT_SONGS` foi sorteada uma vez
-  com `random.Random(42).sample(elegíveis em ordem alfabética, 50)` entre as 259
-  músicas de teste com pelo menos 6 s e fica fixa no arquivo (o test02 confere).
+  duração), N_PROMPTS 100 (eram 50; o professor pediu 100 em 2026-11-24), SEED 42,
+  temperatura 1.0, top-k 32, semente `SEED + i` para a i-ésima música. A lista
+  `PROMPT_SONGS` foi sorteada com `random.Random(42).sample(elegíveis em ordem
+  alfabética, N)` entre as 259 músicas de teste com pelo menos 6 s e fica fixa no
+  arquivo (o test02 confere); os 50 primeiros são a lista original.
 - **Referência**: os mesmos 4 s de prompt + os 12 s reais seguintes (ou até o fim
   da música), notas fechadas, no mesmo formato da geração.
 - **Perplexidade**: exp(média da entropia cruzada, em log natural, de todos os
@@ -92,12 +104,16 @@ quarta-feira, 25/11/2026, 23:59.
   completa na CPU: ~9,5 s por lote de 8×1024, ~2080 lotes por época (~4–5 h/época).
   O treino de verdade vai rodar em outra máquina com GPU.
 
-## Estado
-- Fases 1, 2 e 4 (código) concluídas e testadas na CPU com checkpoints pequenos.
-- Fase 3: falta rodar o `--benchmark` na máquina com GPU, escolher épocas e lote,
-  e lançar o treino completo em `runs/transformer/` (comandos no README).
-- Depois do treino: step04, step05, step06; revisar `results/transformer/README.md`
-  e preencher as observações de escuta.
+## Estado (2026-11-24)
+- Transformer e LSTM treinados, avaliados e com as 100 continuações geradas; tudo em
+  `resultados/` (ver `resultados/README.md` e `resultados/comparacao.md`).
+- Transformer: 100 épocas, melhor na 40; teste: perplexidade 2,47, acurácia 74,3%.
+- LSTM: treino encerrado na época 79 (melhor na 12; a validação só piorou depois).
+- Falta: observações de escuta nos READMEs de `resultados/`, resultados do Markov
+  (`resultados/markov/` e `resultados/amostras/markov/`, depois `step07_compare.py`)
+  e avisar o colega do Markov que o protocolo passou para 100 prompts.
+- A execução no cluster SONIC (Slurm) fica só na branch `execucao-slurm`; a `main`
+  tem apenas a execução numa máquina comum.
 
 ## Verificação
 ```bash

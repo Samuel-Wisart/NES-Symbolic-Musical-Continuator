@@ -56,6 +56,14 @@ def save_json(data, path: Path) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def export_model(checkpoint: dict, path: Path) -> None:
+    """Grava só o que avaliação e geração precisam (pesos, configuração, época e histórico),
+    sem otimizador, GradScaler e RNGs: ~4x menor que o best.pt do treino."""
+    keys = ("version", "vocab", "model_config", "model", "epoch", "best_loss", "run_config", "history")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    save_checkpoint({key: checkpoint[key] for key in keys if key in checkpoint}, path)
+
+
 def make_dataset(root: Path, split: str, context: int, limit: int | None) -> NESWindows:
     stride = None if split == "train" else context
     dataset = NESWindows(root, split, context=context, stride=stride, limit=limit)
@@ -404,9 +412,11 @@ def train(args, device: torch.device) -> None:
             print("[parada] fim de época salvo; rode o mesmo comando para continuar", flush=True)
             return
 
-    save_json({"epochs": args.epochs, "best_valid_loss": best_loss, "time": time.strftime("%Y-%m-%d %H:%M:%S")},
+    # Épocas de fato completas (podem passar de --epochs se ele foi reduzido depois).
+    completed = epoch - 1
+    save_json({"epochs": completed, "best_valid_loss": best_loss, "time": time.strftime("%Y-%m-%d %H:%M:%S")},
               done_file)
-    print(f"Concluído: {args.epochs} épocas, melhor loss de validação {best_loss:.4f}", flush=True)
+    print(f"Concluído: {completed} épocas, melhor loss de validação {best_loss:.4f}", flush=True)
 
 
 def evaluate(args, device: torch.device) -> dict:

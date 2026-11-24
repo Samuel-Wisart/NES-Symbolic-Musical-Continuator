@@ -34,7 +34,16 @@ from pathlib import Path
 ### Caminhos
 ROOT = Path(__file__).resolve().parents[1]
 TEST_TOKENS_DIR = ROOT / "data" / "processed" / "nesmdb" / "tokens" / "test"
-GENERATED_DIR = ROOT / "results" / "generated"
+# Resultados entregues (versionados): um subdiretório por modelo e as amostras geradas.
+RESULTS_DIR = ROOT / "resultados"
+GENERATED_DIR = RESULTS_DIR / "amostras"
+REFERENCE_NAME = "referencia"
+MODELS = ("transformer", "lstm")
+
+def checkpoint_path(model):
+    """best.pt do treino local (runs/<modelo>/) ou, se não houver, o modelo entregue em resultados/<modelo>/."""
+    trained = ROOT / "runs" / model / "best.pt"
+    return trained if trained.exists() else RESULTS_DIR / model / "modelo.pt"
 
 ### Avaliação
 TEST_SONGS = 372

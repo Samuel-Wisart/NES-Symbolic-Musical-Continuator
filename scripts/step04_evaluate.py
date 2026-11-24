@@ -1,7 +1,11 @@
 """
-step04_evaluate_transformer
+step04_evaluate
 
-Avalia o Transformer no conjunto de teste: loss, perplexidade e acurácia.
+Avalia um modelo (Transformer ou LSTM) no conjunto de teste: loss, perplexidade
+e acurácia.
+
+    python scripts/step04_evaluate.py --model transformer
+    python scripts/step04_evaluate.py --model lstm
 
 Perplexidade = exp(média da entropia cruzada, em log natural, de todos os
 tokens depois do BOS em cada música de teste), como no scripts/protocol.py.
@@ -10,8 +14,11 @@ deslizantes (passo = contexto / 2), para que todo token tenha pelo menos meio
 contexto de histórico; a medida com janelas disjuntas (passo = contexto, igual
 à validação durante o treino) também é salva.
 
-Salva results/transformer/test_metrics.json e copia o histórico de treino e as
-informações da execução para results/transformer/.
+Usa runs/<modelo>/best.pt (se o modelo foi treinado nesta máquina) ou o modelo
+entregue em resultados/<modelo>/modelo.pt. Salva resultados/<modelo>/test_metrics.json;
+quando avalia o best.pt do treino, também copia o histórico de treino
+(train_history.json), as informações da execução (run_info.json) e exporta o
+modelo sem o estado do otimizador (modelo.pt) para resultados/<modelo>/.
 """
 
 ### Imports
@@ -26,14 +33,9 @@ from torch.utils.data import DataLoader  # noqa: E402
 
 from nes_continuation.data import ScoringWindows, collate_scoring  # noqa: E402
 from nes_continuation.training import (  # noqa: E402
-    device_name, load_checkpoint, portable_path, restore_model, score, show_metrics,
+    device_name, export_model, load_checkpoint, portable_path, restore_model, score, show_metrics,
 )
-from protocol import TEST_SONGS, TEST_TARGET_TOKENS  # noqa: E402
-
-### Caminhos
-# --model lstm troca para runs/lstm e results/lstm.
-RUN_DIR = ROOT / "runs" / "transformer"
-RESULTS_DIR = ROOT / "results" / "transformer"
+from protocol import MODELS, RESULTS_DIR, TEST_SONGS, TEST_TARGET_TOKENS, checkpoint_path  # noqa: E402
 
 ### Avaliação
 def evaluate(model, split, stride, batch_size, device, limit=None):
@@ -50,7 +52,7 @@ def evaluate(model, split, stride, batch_size, device, limit=None):
     return metrics
 
 def copy_training_files(run_dir, results_dir):
-    """Copia o histórico de treino e as informações da execução (pequenos JSON) para results/."""
+    """Copia o histórico de treino e as informações da execução (pequenos JSON) para resultados/."""
     for source, target in (("metrics.json", "train_history.json"), ("run_info.json", "run_info.json")):
         if (run_dir / source).exists():
             shutil.copyfile(run_dir / source, results_dir / target)
@@ -58,17 +60,16 @@ def copy_training_files(run_dir, results_dir):
 ### Execução
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--model", choices=("transformer", "lstm"), default="transformer",
-                        help="usa runs/<modelo>/best.pt e grava em results/<modelo>/")
-    parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--model", choices=MODELS, required=True, help="modelo a avaliar")
+    parser.add_argument("--checkpoint", type=Path, help="padrão: runs/<modelo>/best.pt ou resultados/<modelo>/modelo.pt")
     parser.add_argument("--split", choices=("valid", "test"), default="test")
     parser.add_argument("--limit", type=int, help="máximo de músicas (só para testar o script)")
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    results_dir = ROOT / "results" / args.model
-    args.checkpoint = args.checkpoint or ROOT / "runs" / args.model / "best.pt"
+    results_dir = RESULTS_DIR / args.model
+    args.checkpoint = args.checkpoint or checkpoint_path(args.model)
     args.output = args.output or results_dir / "test_metrics.json"
 
     device = torch.device(args.device)
@@ -106,8 +107,11 @@ def main():
     args.output.write_text(json.dumps(results, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"Métricas: {args.output}")
 
-    if full_test and args.output.parent == results_dir:
+    trained = args.checkpoint.resolve() != (results_dir / "modelo.pt").resolve()
+    if full_test and args.output.parent == results_dir and trained:
         copy_training_files(args.checkpoint.parent, results_dir)
+        export_model(checkpoint, results_dir / "modelo.pt")
+        print(f"Modelo exportado: {results_dir / 'modelo.pt'}")
 
 if __name__ == "__main__":
     main()

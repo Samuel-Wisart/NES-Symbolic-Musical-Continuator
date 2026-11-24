@@ -1,14 +1,20 @@
 """
-step05_generate_transformer
+step05_generate
 
-Gera as continuações do Transformer seguindo o scripts/protocol.py.
+Gera as continuações de um modelo (Transformer ou LSTM) seguindo o
+scripts/protocol.py.
 
-Para cada música de PROMPT_SONGS salva, em results/generated/transformer/:
+    python scripts/step05_generate.py --model transformer
+    python scripts/step05_generate.py --model lstm
+
+Usa runs/<modelo>/best.pt ou, se não houver, o modelo entregue em
+resultados/<modelo>/modelo.pt. Para cada música de PROMPT_SONGS salva, em
+resultados/amostras/<modelo>/:
     <nome>.npz  ids (prompt + continuação + fechamento + EOS) e prompt_length
     <nome>.mid  MIDI com as trilhas p1, p2, tr e no
-    <nome>.wav  prévia chiptune (só as N_WAV primeiras)
+    <nome>.wav  prévia chiptune (só as N_WAV primeiras; não versionada)
 e a referência real dos mesmos segundos, no mesmo formato, em
-results/generated/reference/. O summary.json de cada pasta resume a geração.
+resultados/amostras/referencia/. O summary.json de cada pasta resume a geração.
 """
 
 ### Imports
@@ -27,9 +33,6 @@ from nes_continuation.sampling import sample, save_generation  # noqa: E402
 from nes_continuation.training import device_name, load_checkpoint, portable_path, restore_model  # noqa: E402
 import protocol  # noqa: E402
 
-### Caminhos
-RUN_DIR = ROOT / "runs" / "transformer"
-
 ### Funções auxiliares
 def settings():
     """Parâmetros do protocolo registrados no summary.json."""
@@ -42,20 +45,19 @@ def write_summary(folder, summary):
 ### Execução
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--model", choices=("transformer", "lstm"), default="transformer",
-                        help="usa runs/<modelo>/best.pt e grava em <output-dir>/<modelo>/")
-    parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--model", choices=protocol.MODELS, required=True, help="modelo que gera as continuações")
+    parser.add_argument("--checkpoint", type=Path, help="padrão: runs/<modelo>/best.pt ou resultados/<modelo>/modelo.pt")
     parser.add_argument("--output-dir", type=Path, default=protocol.GENERATED_DIR)
     parser.add_argument("--limit", type=int, help="só as primeiras músicas (para testar o script)")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = parser.parse_args()
-    args.checkpoint = args.checkpoint or ROOT / "runs" / args.model / "best.pt"
+    args.checkpoint = args.checkpoint or protocol.checkpoint_path(args.model)
 
     device = torch.device(args.device)
     checkpoint = load_checkpoint(args.checkpoint)
     model = restore_model(checkpoint, device)
     model_dir = args.output_dir / args.model
-    reference_dir = args.output_dir / "reference"
+    reference_dir = args.output_dir / protocol.REFERENCE_NAME
     print(f"{device_name(device)} | checkpoint da época {checkpoint['epoch']}", flush=True)
 
     model_rows, reference_rows = [], []

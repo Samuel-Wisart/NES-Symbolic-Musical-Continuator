@@ -8,8 +8,8 @@ lote 8, semente 42 e mesma seleção do best.pt pela loss de validação. Muda s
 modelo: 2 camadas LSTM de largura 512 (~4,8 M parâmetros, perto dos ~5,3 M do
 Transformer), saída compartilhada com o embedding. Salva em runs/lstm/.
 
-Padrão de 70 épocas: no treino entregue, a validação do LSTM foi a melhor na
-época 12 e só piorou depois (overfitting), então o treino foi encerrado na 70.
+Padrão de 79 épocas: no treino entregue, a validação do LSTM foi a melhor na
+época 12 e só piorou depois (overfitting), então o treino foi encerrado na 79.
 
     python scripts/step03_train_lstm.py
     python scripts/step03_train_lstm.py --benchmark 30 --batch-size 32
@@ -34,7 +34,7 @@ from nes_continuation.__main__ import main as cli  # noqa: E402
 # Os argumentos da linha de comando vêm depois e, no argparse, o último vence.
 DEFAULTS = [
     "--run-dir", str(RUN_DIR),
-    "--epochs", "70",
+    "--epochs", "79",
     "--arch", "lstm",
     "--context", "1024",
     "--layers", "2",
