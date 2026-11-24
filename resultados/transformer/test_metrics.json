@@ -1,0 +1,32 @@
+{
+  "split": "test",
+  "checkpoint": "runs/transformer/best.pt",
+  "epoch": 40,
+  "best_valid_loss": 1.106312183694327,
+  "device": "NVIDIA GeForce RTX 3090 Ti",
+  "definition": "exp(média da entropia cruzada, log natural, de todos os tokens depois do BOS)",
+  "tokens": 435683,
+  "loss": 0.9042405114498385,
+  "perplexity": 2.470055231818095,
+  "accuracy": 0.7432192672195151,
+  "sliding_windows": {
+    "tokens": 435683,
+    "loss": 0.9042405114498385,
+    "perplexity": 2.470055231818095,
+    "accuracy": 0.7432192672195151,
+    "songs": 372,
+    "windows": 876,
+    "stride": 512,
+    "seconds": 1.083358084084466
+  },
+  "disjoint_windows": {
+    "tokens": 435683,
+    "loss": 0.9878744264752125,
+    "perplexity": 2.685520130883786,
+    "accuracy": 0.7245107107690684,
+    "songs": 372,
+    "windows": 663,
+    "stride": 1024,
+    "seconds": 0.7335126709658653
+  }
+}

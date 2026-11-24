@@ -1,0 +1,35 @@
+{
+  "device": "NVIDIA GeForce RTX 3090 Ti",
+  "precision": "BF16 misto",
+  "torch": "2.9.1+cu128",
+  "python": "3.12.1",
+  "parameters": 4794880,
+  "model_config": {
+    "context": 1024,
+    "width": 512,
+    "heads": 8,
+    "layers": 2,
+    "dropout": 0.1,
+    "arch": "lstm"
+  },
+  "run_config": {
+    "data": "/tmp/samuel.miranda-nes-processed/nesmdb/tokens",
+    "train_limit": null,
+    "valid_limit": null,
+    "batch_size": 8,
+    "lr": 0.0003,
+    "seed": 42
+  },
+  "epochs_requested": 70,
+  "train": {
+    "songs": 4500,
+    "windows": 16640,
+    "targets": 8743119
+  },
+  "valid": {
+    "songs": 402,
+    "windows": 886,
+    "targets": 649688
+  },
+  "batches_per_epoch": 2080
+}
