@@ -42,16 +42,19 @@ def write_summary(folder, summary):
 ### Execução
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--checkpoint", type=Path, default=RUN_DIR / "best.pt")
+    parser.add_argument("--model", choices=("transformer", "lstm"), default="transformer",
+                        help="usa runs/<modelo>/best.pt e grava em <output-dir>/<modelo>/")
+    parser.add_argument("--checkpoint", type=Path)
     parser.add_argument("--output-dir", type=Path, default=protocol.GENERATED_DIR)
     parser.add_argument("--limit", type=int, help="só as primeiras músicas (para testar o script)")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = parser.parse_args()
+    args.checkpoint = args.checkpoint or ROOT / "runs" / args.model / "best.pt"
 
     device = torch.device(args.device)
     checkpoint = load_checkpoint(args.checkpoint)
     model = restore_model(checkpoint, device)
-    model_dir = args.output_dir / "transformer"
+    model_dir = args.output_dir / args.model
     reference_dir = args.output_dir / "reference"
     print(f"{device_name(device)} | checkpoint da época {checkpoint['epoch']}", flush=True)
 
@@ -102,7 +105,7 @@ def main():
         )
 
     write_summary(model_dir, {
-        "model": "transformer",
+        "model": args.model,
         "checkpoint": portable_path(args.checkpoint),
         "epoch": checkpoint["epoch"],
         "protocol": settings(),

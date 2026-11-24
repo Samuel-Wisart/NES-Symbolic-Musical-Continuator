@@ -14,8 +14,9 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 from .data import NESWindows, collate_windows
-from .model import ModelConfig, NESTransformer
+from .model import ModelConfig, build_model
 from .representation import PAD, ROOT, VOCAB
+from .stop import should_stop
 
 # Versão 2: vocabulário do step01 (VOCAB) no lugar dos EVENTS do tokenizador antigo.
 CHECKPOINT_VERSION = 2
@@ -28,8 +29,8 @@ def load_checkpoint(path: Path) -> dict:
     return checkpoint
 
 
-def restore_model(checkpoint: dict, device: torch.device) -> NESTransformer:
-    model = NESTransformer(ModelConfig(**checkpoint["model_config"])).to(device)
+def restore_model(checkpoint: dict, device: torch.device) -> torch.nn.Module:
+    model = build_model(ModelConfig(**checkpoint["model_config"])).to(device)
     model.load_state_dict(checkpoint["model"])
     return model
 
@@ -39,6 +40,17 @@ def save_checkpoint(checkpoint: dict, path: Path) -> None:
         temporary = Path(handle.name)
     try:
         torch.save(checkpoint, temporary)
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def save_json(data, path: Path) -> None:
+    """Grava JSON de forma atômica (temporário na mesma pasta + replace)."""
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as handle:
+        temporary = Path(handle.name)
+        handle.write(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    try:
         temporary.replace(path)
     finally:
         temporary.unlink(missing_ok=True)
@@ -98,27 +110,6 @@ def train_step(model, inputs, targets, optimizer, scaler, device, amp_dtype) -> 
     scaler.step(optimizer)
     scaler.update()
     return loss.detach(), tokens
-
-
-def train_epoch(model, batches, optimizer, scaler, device, amp_dtype, log_every: int) -> float:
-    model.train()
-    loss_sum = torch.zeros((), device=device)
-    total_tokens = 0
-    start = time.monotonic()
-    for step, (inputs, targets) in enumerate(batches, 1):
-        loss, tokens = train_step(model, inputs, targets, optimizer, scaler, device, amp_dtype)
-        total_tokens += tokens
-        loss_sum += loss
-        if step % log_every == 0 or step == len(batches):
-            elapsed = time.monotonic() - start
-            average = loss_sum.item() / total_tokens
-            remaining = elapsed / step * (len(batches) - step)
-            print(
-                f"  lote {step}/{len(batches)} | loss={average:.4f} | "
-                f"{elapsed / step:.3f} s/lote | treino da época: faltam ~{remaining / 60:.1f} min",
-                flush=True,
-            )
-    return loss_sum.item() / total_tokens
 
 
 @torch.inference_mode()
@@ -210,11 +201,33 @@ def benchmark(model, train_set, valid_set, optimizer, scaler, device, amp_dtype,
     )
 
 
+def epoch_order(dataset_size: int, seed: int, epoch: int) -> list[int]:
+    """Ordem das janelas na época: depende só de (semente, época), para retomar no meio dela."""
+    return torch.randperm(dataset_size, generator=torch.Generator().manual_seed(seed + epoch)).tolist()
+
+
 def train(args, device: torch.device) -> None:
+    """Treina retomando sozinho do last.pt, se houver (o mesmo comando começa ou continua).
+
+    Checkpoint a cada --checkpoint-minutes, no fim de cada época e ao parar (sinal do
+    Ctrl+C, SIGTERM/SIGUSR1 ou PRAZO_EPOCH). O last.pt guarda a posição dentro da época, então a retomada
+    continua do lote seguinte ao último salvo. Grava progresso.json a cada checkpoint e
+    CONCLUIDO quando todas as épocas pedidas terminam.
+    """
     latest = args.run_dir / "last.pt"
     best = args.run_dir / "best.pt"
-    if not args.benchmark and not args.resume and (latest.exists() or best.exists()):
-        raise ValueError("Já há checkpoints em --run-dir. Use --resume ou outra pasta.")
+    progress_file = args.run_dir / "progresso.json"
+    done_file = args.run_dir / "CONCLUIDO"
+    if args.do_zero and not args.benchmark:
+        for path in (latest, best, progress_file, done_file, args.run_dir / "metrics.json"):
+            path.unlink(missing_ok=True)
+        print(f"[do zero] estado anterior apagado em {args.run_dir}", flush=True)
+    if not args.benchmark and done_file.exists():
+        done = json.loads(done_file.read_text(encoding="utf-8"))
+        if done["epochs"] >= args.epochs:
+            print(f"Treino já concluído ({done['epochs']} épocas, {done_file}). "
+                  "Aumente --epochs para continuar ou use --do-zero.", flush=True)
+            return
 
     run_config = {
         "data": portable_path(args.data),
@@ -224,31 +237,42 @@ def train(args, device: torch.device) -> None:
         "lr": args.lr,
         "seed": args.seed,
     }
-    start_epoch = 1
+    requested_model = ModelConfig(args.context, args.width, args.heads, args.layers, args.dropout, args.arch)
+    resume = latest.exists() and not args.benchmark
+    completed_epochs, next_batch = 0, 0
+    partial_loss, partial_tokens, partial_seconds = 0.0, 0, 0.0
     best_loss = math.inf
     history = []
     torch.manual_seed(args.seed)
-    if args.resume and not args.benchmark:
+    if resume:
         checkpoint = load_checkpoint(latest)
-        if checkpoint["run_config"] != run_config:
-            raise ValueError("Repita os argumentos originais de dados, lote, taxa e semente ao retomar.")
+        saved_model = asdict(ModelConfig(**checkpoint["model_config"]))  # checkpoints sem "arch" = Transformer
+        if checkpoint["run_config"] != run_config or saved_model != asdict(requested_model):
+            raise ValueError(
+                f"Configuração diferente da salva em {latest}:\n"
+                f"  salva: {checkpoint['run_config']} {checkpoint['model_config']}\n"
+                f"  atual: {run_config} {asdict(requested_model)}\n"
+                "Repita os argumentos originais, use outra --run-dir ou --do-zero."
+            )
         model = restore_model(checkpoint, device)
-        start_epoch = checkpoint["epoch"] + 1
+        completed_epochs = checkpoint["epoch"]
+        next_batch = checkpoint.get("batch", 0)
+        partial_loss, partial_tokens, partial_seconds = checkpoint.get("partial", (0.0, 0, 0.0))
         best_loss = checkpoint["best_loss"]
         history = checkpoint["history"]
+        print(f"[retomada] época {completed_epochs + 1}, lote {next_batch} ({latest})", flush=True)
     else:
-        config = ModelConfig(args.context, args.width, args.heads, args.layers, args.dropout)
-        model = NESTransformer(config).to(device)
-
-    if start_epoch > args.epochs:
-        print(f"Treino já concluído até a época {start_epoch - 1}. Aumente --epochs para continuar.")
-        return
+        model = build_model(requested_model).to(device)
+        if not args.benchmark:
+            print("[início] sem checkpoint: começando do zero", flush=True)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.01)
     amp_dtype = autocast_dtype(device)
     scaler = torch.amp.GradScaler(device.type, enabled=amp_dtype == torch.float16)
-    if args.resume and not args.benchmark:
+    if resume:
         optimizer.load_state_dict(checkpoint["optimizer"])
+        if checkpoint.get("scaler"):
+            scaler.load_state_dict(checkpoint["scaler"])
         torch.set_rng_state(checkpoint["cpu_rng"])
         if device.type == "cuda" and checkpoint["cuda_rng"] is not None:
             torch.cuda.set_rng_state(checkpoint["cuda_rng"], device)
@@ -257,10 +281,11 @@ def train(args, device: torch.device) -> None:
     train_set = make_dataset(args.data, "train", context, args.train_limit)
     valid_set = make_dataset(args.data, "valid", context, args.valid_limit)
     valid_batches = make_loader(valid_set, args.batch_size, device)
+    batches_per_epoch = math.ceil(len(train_set) / args.batch_size)
     params = sum(parameter.numel() for parameter in model.parameters())
     print(
         f"{device_name(device)} | {precision_name(amp_dtype)} | {params:,} parâmetros | "
-        f"{math.ceil(len(train_set) / args.batch_size)} lotes de treino/época | "
+        f"{batches_per_epoch} lotes de treino/época | "
         f"{len(valid_batches)} lotes de validação/época",
         flush=True,
     )
@@ -270,7 +295,8 @@ def train(args, device: torch.device) -> None:
 
     # Informações da execução para o relatório (reescritas a cada início ou retomada).
     args.run_dir.mkdir(parents=True, exist_ok=True)
-    run_info = {
+    done_file.unlink(missing_ok=True)  # --epochs maior que o já concluído: continua treinando
+    save_json({
         "device": device_name(device),
         "precision": precision_name(amp_dtype),
         "torch": torch.__version__,
@@ -281,29 +307,22 @@ def train(args, device: torch.device) -> None:
         "epochs_requested": args.epochs,
         "train": {"songs": len(train_set.songs), "windows": len(train_set), "targets": train_set.target_count},
         "valid": {"songs": len(valid_set.songs), "windows": len(valid_set), "targets": valid_set.target_count},
-        "batches_per_epoch": math.ceil(len(train_set) / args.batch_size),
-    }
-    (args.run_dir / "run_info.json").write_text(json.dumps(run_info, indent=2) + "\n", encoding="utf-8")
-    for epoch in range(start_epoch, args.epochs + 1):
-        print(f"Época {epoch}/{args.epochs}", flush=True)
-        start = time.monotonic()
-        batches = make_loader(train_set, args.batch_size, device, args.seed + epoch)
-        train_loss = train_epoch(model, batches, optimizer, scaler, device, amp_dtype, args.log_every)
-        metrics = score(model, valid_batches, device)
-        show_metrics("valid", metrics)
-        if not math.isfinite(train_loss) or not math.isfinite(metrics["loss"]):
-            raise ValueError("Loss não finita. Confira a taxa de aprendizado e retome o último checkpoint.")
-        improved = metrics["loss"] < best_loss
-        best_loss = min(best_loss, metrics["loss"])
-        elapsed = time.monotonic() - start
-        history.append({"epoch": epoch, "seconds": elapsed, "train_loss": train_loss, "valid": metrics})
+        "batches_per_epoch": batches_per_epoch,
+    }, args.run_dir / "run_info.json")
+
+    def save_state(epoch: int, batch: int, partial: tuple, improved: bool = False) -> None:
+        """epoch = épocas completas; batch = próximo lote da época epoch + 1;
+        partial = (soma da loss, tokens, segundos) já acumulados nessa época."""
         checkpoint = {
             "version": CHECKPOINT_VERSION,
             "vocab": list(VOCAB),
             "model_config": asdict(model.config),
             "model": model.state_dict(),
             "optimizer": optimizer.state_dict(),
+            "scaler": scaler.state_dict(),
             "epoch": epoch,
+            "batch": batch,
+            "partial": partial,
             "best_loss": best_loss,
             "run_config": run_config,
             "history": history,
@@ -313,14 +332,81 @@ def train(args, device: torch.device) -> None:
         if improved:
             save_checkpoint(checkpoint, best)
         save_checkpoint(checkpoint, latest)
-        (args.run_dir / "metrics.json").write_text(
-            json.dumps(history, indent=2) + "\n", encoding="utf-8",
+        save_json({
+            "epoch": epoch,
+            "batch": batch,
+            "batches_per_epoch": batches_per_epoch,
+            "epochs_requested": args.epochs,
+            "best_valid_loss": None if math.isinf(best_loss) else best_loss,
+            "time": time.strftime("%Y-%m-%d %H:%M:%S"),
+        }, progress_file)
+
+    last_save = time.monotonic()
+    epoch = completed_epochs + 1
+    while epoch <= args.epochs:
+        print(f"Época {epoch}/{args.epochs}" + (f" (a partir do lote {next_batch})" if next_batch else ""), flush=True)
+        # Época retomada: o tempo conta também o trecho feito antes da parada.
+        start = time.monotonic() - partial_seconds
+        order = epoch_order(len(train_set), args.seed, epoch)
+        batches = DataLoader(
+            train_set, batch_size=args.batch_size, sampler=order[next_batch * args.batch_size:],
+            collate_fn=collate_windows, pin_memory=device.type == "cuda",
+            # Gerador próprio: sem ele o DataLoader consome o RNG global ao criar o iterador,
+            # e a retomada no meio da época desalinharia o dropout.
+            generator=torch.Generator().manual_seed(args.seed + epoch),
         )
+        model.train()
+        segment_start = time.monotonic()
+        loss_sum = torch.tensor(partial_loss, device=device, dtype=torch.float64)
+        total_tokens = partial_tokens
+        for step, (inputs, targets) in enumerate(batches, next_batch + 1):
+            loss, tokens = train_step(model, inputs, targets, optimizer, scaler, device, amp_dtype)
+            total_tokens += tokens
+            loss_sum += loss
+            stop = should_stop()
+            if step % args.log_every == 0 or step == batches_per_epoch:
+                per_batch = (time.monotonic() - segment_start) / (step - next_batch)
+                remaining = per_batch * (batches_per_epoch - step)
+                print(
+                    f"  lote {step}/{batches_per_epoch} | loss={loss_sum.item() / total_tokens:.4f} | "
+                    f"{per_batch:.3f} s/lote | treino da época: faltam ~{remaining / 60:.1f} min",
+                    flush=True,
+                )
+            if step < batches_per_epoch and (stop or time.monotonic() - last_save >= args.checkpoint_minutes * 60):
+                save_state(epoch - 1, step, (loss_sum.item(), total_tokens, time.monotonic() - start))
+                last_save = time.monotonic()
+                if stop:
+                    print(f"[parada] salvo na época {epoch}, lote {step}; rode o mesmo comando para continuar",
+                          flush=True)
+                    return
+                print(f"  [checkpoint] época {epoch}, lote {step}", flush=True)
+
+        train_loss = loss_sum.item() / total_tokens
+        metrics = score(model, valid_batches, device)
+        show_metrics("valid", metrics)
+        if not math.isfinite(train_loss) or not math.isfinite(metrics["loss"]):
+            raise ValueError("Loss não finita. Confira a taxa de aprendizado e retome o último checkpoint.")
+        improved = metrics["loss"] < best_loss
+        best_loss = min(best_loss, metrics["loss"])
+        elapsed = time.monotonic() - start
+        history.append({"epoch": epoch, "seconds": elapsed, "train_loss": train_loss, "valid": metrics})
+        save_state(epoch, 0, (0.0, 0, 0.0), improved)
+        last_save = time.monotonic()
+        save_json(history, args.run_dir / "metrics.json")
         print(
             f"Época em {elapsed:.1f} s | ETA total ~{elapsed * (args.epochs - epoch) / 60:.1f} min | "
             f"checkpoint: {latest}" + (" | novo best.pt" if improved else ""),
             flush=True,
         )
+        epoch, next_batch = epoch + 1, 0
+        partial_loss, partial_tokens, partial_seconds = 0.0, 0, 0.0
+        if epoch <= args.epochs and should_stop():
+            print("[parada] fim de época salvo; rode o mesmo comando para continuar", flush=True)
+            return
+
+    save_json({"epochs": args.epochs, "best_valid_loss": best_loss, "time": time.strftime("%Y-%m-%d %H:%M:%S")},
+              done_file)
+    print(f"Concluído: {args.epochs} épocas, melhor loss de validação {best_loss:.4f}", flush=True)
 
 
 def evaluate(args, device: torch.device) -> dict:

@@ -1,4 +1,10 @@
-"""Transformer somente decodificador, implementado em PyTorch nativo."""
+"""Modelos do próximo token em PyTorch nativo: Transformer somente decodificador e LSTM.
+
+As duas arquiteturas usam o mesmo vocabulário (os 1155 tokens do step01), o mesmo
+compartilhamento de pesos entre embedding e saída e a mesma interface
+(`model(tokens) -> logits`, `model.config.context`), então treino, avaliação e
+geração são os mesmos. `build_model(config)` escolhe pela `config.arch`.
+"""
 
 from dataclasses import dataclass
 
@@ -10,6 +16,9 @@ from torch.nn import functional as F
 from .representation import VOCAB_SIZE
 
 
+ARCHITECTURES = ("transformer", "lstm")
+
+
 @dataclass(frozen=True)
 class ModelConfig:
     context: int = 1024
@@ -17,11 +26,15 @@ class ModelConfig:
     heads: int = 8
     layers: int = 6
     dropout: float = 0.1
+    # Checkpoints antigos (sem este campo) são do Transformer.
+    arch: str = "transformer"
 
     def __post_init__(self) -> None:
+        if self.arch not in ARCHITECTURES:
+            raise ValueError(f"arch deve ser uma de {ARCHITECTURES}")
         if min(self.context, self.width, self.heads, self.layers) < 1:
             raise ValueError("context, width, heads e layers devem ser positivos")
-        if self.width % self.heads:
+        if self.arch == "transformer" and self.width % self.heads:
             raise ValueError("width deve ser divisível por heads")
         if not 0.0 <= self.dropout < 1.0:
             raise ValueError("dropout deve estar em [0, 1)")
@@ -86,3 +99,43 @@ class NESTransformer(nn.Module):
             hidden = block(hidden)
         # Compartilhamento de pesos entre a projeção de saída e o embedding de entrada.
         return F.linear(self.final_norm(hidden), self.token_embedding.weight)
+
+
+class NESLSTM(nn.Module):
+    """LSTM empilhado sobre os mesmos tokens, janelas e saída compartilhada do Transformer.
+
+    `context` é o comprimento da janela (BPTT truncado: o estado começa zerado em cada
+    janela, como o Transformer, que também só vê a janela), para que os dois modelos
+    vejam exatamente os mesmos dados. `width` é a dimensão do embedding e do estado;
+    `heads` não é usado. O LSTM roda em FP32 mesmo dentro do autocast (BF16/FP16),
+    porque o suporte do cuDNN a RNN em BF16 depende da versão; o resto segue o autocast.
+    """
+
+    def __init__(self, config: ModelConfig) -> None:
+        super().__init__()
+        self.config = config
+        self.token_embedding = nn.Embedding(VOCAB_SIZE, config.width)
+        self.embedding_dropout = nn.Dropout(config.dropout)
+        self.lstm = nn.LSTM(
+            config.width, config.width, num_layers=config.layers, batch_first=True,
+            dropout=config.dropout if config.layers > 1 else 0.0,
+        )
+        self.output_dropout = nn.Dropout(config.dropout)
+        self.final_norm = nn.LayerNorm(config.width)
+        nn.init.normal_(self.token_embedding.weight, std=0.02)
+
+    def forward(self, tokens: torch.Tensor) -> torch.Tensor:
+        """Produz logits (lote, posições, vocabulário) para o próximo token."""
+        if tokens.ndim != 2 or not 1 <= tokens.shape[1] <= self.config.context:
+            raise ValueError("tokens deve ter forma (lote, posições) dentro do contexto")
+        hidden = self.embedding_dropout(self.token_embedding(tokens))
+        with torch.autocast(device_type=tokens.device.type, enabled=False):
+            hidden, _ = self.lstm(hidden.float())
+        hidden = self.final_norm(self.output_dropout(hidden))
+        # Mesmo compartilhamento de pesos do Transformer: saída = embedding transposto.
+        return F.linear(hidden, self.token_embedding.weight)
+
+
+def build_model(config: ModelConfig) -> nn.Module:
+    """Instancia a arquitetura indicada em config.arch."""
+    return {"transformer": NESTransformer, "lstm": NESLSTM}[config.arch](config)

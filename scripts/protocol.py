@@ -44,7 +44,7 @@ TEST_TARGET_TOKENS = 435683
 PROMPT_SECONDS = 4
 GEN_SECONDS = 12
 MIN_GEN_SECONDS = GEN_SECONDS
-N_PROMPTS = 50
+N_PROMPTS = 100
 SEED = 42
 TEMPERATURE = 1.0
 TOP_K = 32
@@ -56,6 +56,8 @@ N_WAV = 5
 # elegíveis = nomes (em ordem alfabética) das músicas de teste com pelo menos
 # PROMPT_SECONDS + 2 segundos (259 músicas). Ficam fixas aqui; o
 # tests/test02_transformer_tests.py confere que a lista segue essa regra.
+# N_PROMPTS passou de 50 para 100 a pedido do professor (2026-11-24); o sorteio do
+# CPython é sequencial, então os 50 primeiros são a lista original.
 PROMPT_SONGS = (
     "071_DigitalDevilStory_MegamiTensei_11_12MazurkaMazurkaCorridor",
     "002_1943_TheBattleofMidway_12_13AttackTarget",
@@ -107,6 +109,56 @@ PROMPT_SONGS = (
     "116_FelixtheCat_07_08Tropics",
     "379_WardnernoMori_00_01TitleScreen",
     "338_TerraCresta_10_11Unknown",
+    "145_Golgo13_TopSecretEpisode_03_04Cutscene1ActionStage4",
+    "015_Arkanoid_03_04Ending",
+    "124_FleetCommander_00_01Title",
+    "116_FelixtheCat_09_10Space",
+    "338_TerraCresta_05_06Dycoon",
+    "085_DragonBusterII_YaminoFuuin_01_02Demo",
+    "002_1943_TheBattleofMidway_11_12Ayako",
+    "242_MississippiSatsujinJiken_10_11MainThemeExtended",
+    "158_HikarinoSenshiPhoton_WakuseiZoldiasnoTatakai_09_10Area23",
+    "183_Karnov_00_01Opening",
+    "037_BoobyKids_02_03BoobySamba",
+    "145_Golgo13_TopSecretEpisode_02_03MainTheme",
+    "013_AlterEgo_05_06Level4",
+    "183_Karnov_06_07AllCleared",
+    "085_DragonBusterII_YaminoFuuin_12_13NorthernEuropeRound6",
+    "231_MetalFighter__01_02ItemBGMEndingBGM",
+    "214_MadoolanoTsubasa_08_09Ending",
+    "124_FleetCommander_01_02Ending",
+    "194_KnightMove_04_05Umasakaba",
+    "071_DigitalDevilStory_MegamiTensei_02_03MicomStartingMicomCity",
+    "242_MississippiSatsujinJiken_00_01MainTheme",
+    "013_AlterEgo_02_03Level2",
+    "272_Quarth_02_03TheMenaceoftheBlock",
+    "237_MightyBombJack_11_12Ending",
+    "071_DigitalDevilStory_MegamiTensei_12_13PrayJakyou",
+    "085_DragonBusterII_YaminoFuuin_10_11WilderAppearance",
+    "265_PokerJ_ngl_ng_05_06AVPokerMainBGM2",
+    "338_TerraCresta_08_09MarchingRaster",
+    "016_ArkanoidII_01_02Story",
+    "285_Route16Turbo_03_04Difficult",
+    "286_Rygar_05_06IndoraGodJPVersion",
+    "158_HikarinoSenshiPhoton_WakuseiZoldiasnoTatakai_02_03Area12",
+    "237_MightyBombJack_01_02MainBGM",
+    "128_FormationZ_00_01TitleScreen",
+    "038_BubbleBobble_03_04FalseEnding",
+    "141_Ghostbusters_01_02MainBGM",
+    "116_FelixtheCat_12_13Ending",
+    "071_DigitalDevilStory_MegamiTensei_07_08WindowLightShop",
+    "085_DragonBusterII_YaminoFuuin_03_04ForestRound12",
+    "237_MightyBombJack_05_06Labyrinth",
+    "013_AlterEgo_03_04Level2Alternate",
+    "214_MadoolanoTsubasa_04_05MainTowerCastle",
+    "241_MiracleRopit_sAdventurein2100_05_06ThemeofUniverse",
+    "038_BubbleBobble_05_06RealEnding",
+    "176_InsectorX_12_13NameEntry",
+    "071_DigitalDevilStory_MegamiTensei_16_17AnfiniAnfiniPalace",
+    "241_MiracleRopit_sAdventurein2100_03_04ThemeoftheEnemyBaseandCave",
+    "158_HikarinoSenshiPhoton_WakuseiZoldiasnoTatakai_13_14Area32",
+    "308_StarForce_02_03Purser",
+    "085_DragonBusterII_YaminoFuuin_05_06DragonMountainClearDemo",
 )
 
 ### Funções

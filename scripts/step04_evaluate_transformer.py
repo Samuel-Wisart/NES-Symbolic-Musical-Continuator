@@ -31,6 +31,7 @@ from nes_continuation.training import (  # noqa: E402
 from protocol import TEST_SONGS, TEST_TARGET_TOKENS  # noqa: E402
 
 ### Caminhos
+# --model lstm troca para runs/lstm e results/lstm.
 RUN_DIR = ROOT / "runs" / "transformer"
 RESULTS_DIR = ROOT / "results" / "transformer"
 
@@ -48,22 +49,27 @@ def evaluate(model, split, stride, batch_size, device, limit=None):
     assert metrics["tokens"] == dataset.target_count, (metrics["tokens"], dataset.target_count)
     return metrics
 
-def copy_training_files(run_dir):
+def copy_training_files(run_dir, results_dir):
     """Copia o histórico de treino e as informações da execução (pequenos JSON) para results/."""
     for source, target in (("metrics.json", "train_history.json"), ("run_info.json", "run_info.json")):
         if (run_dir / source).exists():
-            shutil.copyfile(run_dir / source, RESULTS_DIR / target)
+            shutil.copyfile(run_dir / source, results_dir / target)
 
 ### Execução
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--checkpoint", type=Path, default=RUN_DIR / "best.pt")
+    parser.add_argument("--model", choices=("transformer", "lstm"), default="transformer",
+                        help="usa runs/<modelo>/best.pt e grava em results/<modelo>/")
+    parser.add_argument("--checkpoint", type=Path)
     parser.add_argument("--split", choices=("valid", "test"), default="test")
     parser.add_argument("--limit", type=int, help="máximo de músicas (só para testar o script)")
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
-    parser.add_argument("--output", type=Path, default=RESULTS_DIR / "test_metrics.json")
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
+    results_dir = ROOT / "results" / args.model
+    args.checkpoint = args.checkpoint or ROOT / "runs" / args.model / "best.pt"
+    args.output = args.output or results_dir / "test_metrics.json"
 
     device = torch.device(args.device)
     torch.set_float32_matmul_precision("high")
@@ -100,8 +106,8 @@ def main():
     args.output.write_text(json.dumps(results, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"Métricas: {args.output}")
 
-    if full_test and args.output.parent == RESULTS_DIR:
-        copy_training_files(args.checkpoint.parent)
+    if full_test and args.output.parent == results_dir:
+        copy_training_files(args.checkpoint.parent, results_dir)
 
 if __name__ == "__main__":
     main()

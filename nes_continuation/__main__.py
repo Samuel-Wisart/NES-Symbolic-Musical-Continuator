@@ -1,15 +1,20 @@
 """Comandos para treinar, avaliar e gerar continuações musicais."""
 
-import argparse
-import math
-from pathlib import Path
+# Tratadores de USR1/TERM/INT antes dos imports pesados (ver stop.py).
+from nes_continuation.stop import install_handlers
 
-import torch
+install_handlers()
 
-from .model import ModelConfig
-from .representation import TOKENS_DIR
-from .sampling import generate
-from .training import evaluate, train
+import argparse  # noqa: E402
+import math  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+import torch  # noqa: E402
+
+from nes_continuation.model import ARCHITECTURES, ModelConfig  # noqa: E402
+from nes_continuation.representation import TOKENS_DIR  # noqa: E402
+from nes_continuation.sampling import generate  # noqa: E402
+from nes_continuation.training import evaluate, train  # noqa: E402
 
 
 def positive_int(value: str) -> int:
@@ -54,7 +59,15 @@ def main() -> None:
     fit.set_defaults(handler=train)
     fit.add_argument("--run-dir", type=Path, default=Path("runs/nes"))
     fit.add_argument("--epochs", type=positive_int, default=10, help="número total de épocas")
-    fit.add_argument("--resume", action="store_true", help="retoma last.pt da pasta da execução")
+    fit.add_argument(
+        "--resume", action="store_true",
+        help="obsoleto e ignorado: a retomada do last.pt de --run-dir é automática",
+    )
+    fit.add_argument("--do-zero", action="store_true", help="apaga o estado salvo em --run-dir e recomeça")
+    fit.add_argument(
+        "--checkpoint-minutes", type=positive_float, default=15.0,
+        help="minutos entre checkpoints dentro da época (além do fim de cada época)",
+    )
     fit.add_argument("--lr", type=positive_float, default=3e-4)
     fit.add_argument("--seed", type=nonnegative_int, default=42)
     fit.add_argument("--log-every", type=positive_int, default=50)
@@ -65,6 +78,7 @@ def main() -> None:
     fit.add_argument("--train-limit", type=positive_int, help="máximo de arquivos do treino")
     fit.add_argument("--valid-limit", type=positive_int, help="máximo de arquivos da validação")
     config = ModelConfig()
+    fit.add_argument("--arch", choices=ARCHITECTURES, default=config.arch, help="arquitetura do modelo")
     fit.add_argument("--context", type=positive_int, default=config.context)
     fit.add_argument("--width", type=positive_int, default=config.width)
     fit.add_argument("--heads", type=positive_int, default=config.heads)
