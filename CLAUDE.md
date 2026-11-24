@@ -104,6 +104,20 @@ quarta-feira, 25/11/2026, 23:59.
   completa na CPU: ~9,5 s por lote de 8×1024, ~2080 lotes por época (~4–5 h/época).
   O treino de verdade vai rodar em outra máquina com GPU.
 
+## Cluster SONIC (Slurm) — só nesta branch
+- Scripts em `scripts/slurm/`: `comum/` (job genérico, pipeline, orquestrador, dados no disco
+  local, testes) e uma pasta por modelo (`transformer/`, `lstm/`: `config.sh`, `pipeline.sh`,
+  `treinar.sh`). Comandos e logs: README, seção "Execução no cluster SONIC (Slurm)".
+- Projeto em `/snfs1/speed/samuel.miranda/...` (o `/snfs2` caiu em 2026-11-23). Venv em
+  `.venv` (Python 3.12 do módulo, torch 2.9.1+cu128).
+- O `/snfs1` leva ~0,3 s por arquivo criado: o dataset processado fica em
+  `data/nesmdb_processed.tar`, extraído no `/tmp` de cada máquina; `data/processed` é um
+  link para lá (`comum/dados_locais.sh`). O step01 roda no disco local do nó.
+- Em 2026-11-23 as `gorgonas` travaram; tudo rodou na `gorgonas_dev` (jobs de 1h30), que é
+  o padrão em `<modelo>/config.sh`. Regra do usuário: um job por vez (os scripts esperam a
+  fila esvaziar); em 2026-11-24 houve uma exceção autorizada (os dois modelos em paralelo).
+- Parar: `touch PARAR`; parar o job atual salvando: `scancel --signal=USR1 --batch <id>`.
+
 ## Estado (2026-11-24)
 - Transformer e LSTM treinados, avaliados e com as 100 continuações geradas; tudo em
   `resultados/` (ver `resultados/README.md` e `resultados/comparacao.md`).

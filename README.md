@@ -1,6 +1,8 @@
 # TP2 - AI Music Generation
 Projeto de geração musical autoregressiva usando o dataset NES-MDB. A tarefa escolhida é a continuação musical: dado o início de uma música, o modelo compõe os segundos seguintes. Comparamos uma cadeia de Markov (baseline) com dois modelos neurais, um Transformer e um LSTM, todos sobre a mesma representação e o mesmo protocolo.
 
+**Execução no cluster SONIC (Slurm): ver a seção [no fim deste README](#execução-no-cluster-sonic-slurm).**
+
 **Resultados prontos para a análise e o relatório: [`resultados/`](resultados/README.md)** (modelos treinados, métricas, comparação e as amostras geradas).
 
 ## Estrutura
@@ -155,3 +157,64 @@ python -m nes_continuation train --help
 python -m nes_continuation evaluate --checkpoint resultados/transformer/modelo.pt --split valid
 python -m nes_continuation generate --checkpoint resultados/lstm/modelo.pt --prompt data/processed/nesmdb/tokens/test/<musica>.npz --prompt-seconds 4 --output exemplo.mid --wav
 ```
+
+## Execução no cluster SONIC (Slurm)
+Esta seção só existe na branch `execucao-slurm`. É como os resultados de `resultados/` foram produzidos, no cluster do DCC/UFMG (nó de login `phocus4`), e serve de base para novas rodadas. A organização segue a da `main`: o que é comum aos dois modelos fica em `scripts/slurm/comum/` e cada modelo tem sua pasta, com configuração e pontos de entrada.
+
+```text
+scripts/slurm/
+  comum/
+    job.sbatch          # job genérico: sem argumentos treina $MODELO; com argumentos roda python/bash
+    pipeline.sh         # tudo de um modelo: dados, testes, treino em cadeia, avaliação, geração, relatório
+    orquestrar.sh       # cadeia de jobs de treino, um por vez, até runs/<modelo>/CONCLUIDO
+    preparar_dados.sh   # step01 no disco local do nó -> data/nesmdb_processed.tar
+    dados_locais.sh     # extrai o tar no /tmp de cada máquina; data/processed vira um link para lá
+    midi_local.sh       # MIDIs do NES-MDB no disco local do nó (para o step01 e os testes)
+    teste_dev.sh        # test01/02/03 + benchmark do modelo num job
+    teste_retomada.sh   # treino minúsculo interrompido e retomado na CPU; as losses têm que bater
+  transformer/
+    config.sh           # partição, tempo por job, nome dos jobs, opções extras do step03
+    pipeline.sh         # ponto de entrada: pipeline completo do Transformer
+    treinar.sh          # ponto de entrada: só a cadeia de treino
+  lstm/                 # o mesmo para o LSTM
+```
+
+Tudo fica no storage compartilhado (`/snfs1/speed/$USER/...`; o `$HOME` da phocus4 não existe nos nós). O `/snfs1` é lento para criar muitos arquivos pequenos, por isso o dataset processado fica num único `data/nesmdb_processed.tar`, extraído no disco local de cada nó.
+
+### Ambiente (uma vez, na phocus4)
+O `python` do PATH da phocus4 é um anaconda; use o do módulo:
+
+```bash
+unset PYTHONHOME PYTHONPATH
+/opt/python/3-12-1/bin/python3 -m venv .venv
+export TMPDIR=/snfs1/speed/$USER/cache/tmp PIP_CACHE_DIR=/snfs1/speed/$USER/cache/pip   # o /tmp da phocus4 está quase cheio
+.venv/bin/pip install -r requirements.txt torch==2.9.1 matplotlib==3.10.7 \
+    --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+```
+
+Baixe o NES-MDB em MIDI para `data/raw/nesmdb_midi.tar.gz` (link no README do NES-MDB; SHA-256 `37610e2c…ee93`). O pipeline roda o step01 num job.
+
+### Rodar
+Um pipeline por modelo, destacado da sessão (sobrevive ao fechamento do terminal); rodar o mesmo comando de novo continua de onde parou:
+
+```bash
+mkdir -p logs
+setsid nohup bash scripts/slurm/transformer/pipeline.sh > logs/pipeline-transformer.out 2>&1 < /dev/null &
+setsid nohup bash scripts/slurm/lstm/pipeline.sh > logs/pipeline-lstm.out 2>&1 < /dev/null &
+```
+
+Os dois respeitam a regra de **um job por vez** do usuário: o segundo espera a fila esvaziar. Acompanhar:
+
+```bash
+tail -f logs/pipeline-transformer.log        # etapas do pipeline
+tail -f logs/orquestrador-transformer.log    # cadeia de treino
+tail -f logs/nes-transformer-<id>.out        # log de um job
+cat runs/transformer/progresso.json
+```
+
+Parar: `touch PARAR` na raiz (não submete o próximo job; o atual vai até o fim). Parar o job atual salvando: `scancel --signal=USR1 --batch <id>`. Partição e tempo por job: `scripts/slurm/<modelo>/config.sh` (na `gorgonas`, no máximo 8 h e nunca `--gres`).
+
+O treino é retomável (ver "2. Treinar"): o job exporta `PRAZO_EPOCH` (10 min antes do fim) e repassa o aviso SIGUSR1 do Slurm; o step03 salva e sai com código 0, e o próximo job da cadeia continua do mesmo lote.
+
+### Rodada de 2026-11-24
+As `gorgonas` estavam travadas e o `/snfs2` fora do ar; tudo rodou na `gorgonas_dev` (RTX 4090 e RTX 3090 Ti, jobs de 1h30). Transformer: ~31 s por época, 100 épocas em um job de teste + um job da cadeia. LSTM: ~1,7 min por época; encerrado na época 79 (`scancel --signal=USR1`), porque a validação só piorava depois da época 12. Excepcionalmente, com autorização do usuário, os dois modelos rodaram em paralelo, um em cada nó da `gorgonas_dev`; os scripts desta branch voltam à regra de um job por vez.

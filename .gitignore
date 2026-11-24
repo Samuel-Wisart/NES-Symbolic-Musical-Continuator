@@ -13,3 +13,12 @@ Thumbs.db
 # figuras e os modelos exportados em resultados/<modelo>/modelo.pt
 runs/
 resultados/amostras/**/*.wav
+
+# Cluster SONIC (scripts/slurm/): logs dos jobs, caches, marcador de parada e o dataset
+# processado num único tar (data/processed vira um link para o disco local de cada nó)
+logs/
+.cache/
+PARAR
+data/processed
+data/processed.antigo.*
+data/nesmdb_processed.tar*
