@@ -28,6 +28,36 @@ NES-MDB. *Desvio de altura* = |altura média da continuação − altura média 
 | LSTM | 100 | 13,33 | 3,31 | 0,208 | 7,62 |
 | Referência (real) | 100 | 15,08 | 3,28 | 0,220 | 3,30 |
 
+![Distribuições das métricas por música](boxplots_amostras.png)
+
+Cada caixa mostra a mediana e os quartis. Os bigodes vão até os valores dentro de 1,5
+vez a amplitude interquartil, e os demais valores aparecem como pontos.
+O n em cada grupo indica quantas músicas têm valor definido para a métrica.
+
+![Distribuições de polifonia, entropia, escala e groove](boxplots_musicais.png)
+
+| Conjunto | Polifonia | Entropia de classes de altura (bits) | Consistência de escala | Consistência de groove |
+|---|---:|---:|---:|---:|
+| Transformer | 2,083 | 2,606 | 0,878 | 0,778 |
+| LSTM | 2,210 | 2,681 | 0,870 | 0,784 |
+| Markov | — | — | — | — |
+| Referência (real) | 2,165 | 2,657 | 0,903 | 0,850 |
+
+Os valores da tabela são médias por música, considerando as amostras com valor definido
+para cada métrica. O travessão indica que não há valor disponível.
+
+A polifonia conta alturas distintas simultâneas nos instantes com som melódico, inclusive
+notas do prompt que ainda soam na continuação. A entropia de Shannon (em bits) e a proporção
+de notas na melhor escala maior ou menor natural usam os ataques da continuação.
+As três métricas de altura excluem o canal de ruído.
+
+A consistência de groove usa todos os canais e mede a proporção de posições com o mesmo
+estado de ataque em blocos consecutivos de 2 s. Como os tokens guardam tempo absoluto,
+a grade de referência equivale a 4/4 a 120 BPM, ancorada no início da continuação.
+São usados apenas blocos completos, com pelo menos dois por amostra.
+
+[Definições das métricas na documentação do MusPy](https://muspy.readthedocs.io/en/latest/metrics.html).
+
 Por voz (notas por segundo / fração do tempo soando / alturas distintas):
 
 | Conjunto | p1 | p2 | tr | no |

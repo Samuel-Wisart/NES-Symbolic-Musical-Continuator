@@ -56,7 +56,11 @@
       "no_pitch_shift": 1.6831533177170976,
       "active_voices": 3.37,
       "mean_duration": 0.18609730715324815,
-      "melodic_pitch_shift": 5.383828614592325
+      "melodic_pitch_shift": 5.383828614592325,
+      "polyphony": 2.0827886855465825,
+      "pitch_class_entropy": 2.6064689668898486,
+      "scale_consistency": 0.8779401405680934,
+      "groove_consistency": 0.7779375
     },
     "lstm": {
       "songs": 100,
@@ -88,7 +92,11 @@
       "no_pitch_shift": 2.5906053440691057,
       "active_voices": 3.31,
       "mean_duration": 0.2079435214979479,
-      "melodic_pitch_shift": 7.617401139334465
+      "melodic_pitch_shift": 7.617401139334465,
+      "polyphony": 2.209743598081286,
+      "pitch_class_entropy": 2.680532235410405,
+      "scale_consistency": 0.8701125390325692,
+      "groove_consistency": 0.783734375
     },
     "referencia": {
       "songs": 100,
@@ -120,7 +128,11 @@
       "no_pitch_shift": 0.7658388997254009,
       "active_voices": 3.28,
       "mean_duration": 0.22010572145083673,
-      "melodic_pitch_shift": 3.2955633329708633
+      "melodic_pitch_shift": 3.2955633329708633,
+      "polyphony": 2.164767338228761,
+      "pitch_class_entropy": 2.656652457315378,
+      "scale_consistency": 0.9032978580840525,
+      "groove_consistency": 0.8500343406593407
     }
   }
 }
