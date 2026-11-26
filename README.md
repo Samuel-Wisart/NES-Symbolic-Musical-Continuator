@@ -87,7 +87,7 @@ Os testes do Transformer e de Markov precisam do dataset preparado.
 |---|---|
 | Lucas Rezende | Organização do Dataset, Implementação da representação e seus testes, Parte do Markov, Relatório |
 | Luiza Sodré | Auxilio no desenvolvimento do transforme, Algumas métricas, Relatório |
-| Samuel | AAAAA |
+| Samuel | Definição de quais modelos usar (Transformer e LSTM), Treinamento desses modelos |
 | Wilian | Parte do Markov, Relatório |
 
 ## Uso de ferramentas de IA
