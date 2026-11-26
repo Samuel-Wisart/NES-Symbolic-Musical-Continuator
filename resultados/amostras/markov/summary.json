@@ -1,0 +1,915 @@
+{
+  "model": "markov",
+  "order": 1,
+  "protocol": {
+    "prompt_seconds": 4,
+    "gen_seconds": 12,
+    "min_gen_seconds": 12,
+    "n_prompts": 100,
+    "seed": 42,
+    "temperature": 1.0,
+    "top_k": 32
+  },
+  "songs": [
+    {
+      "name": "071_DigitalDevilStory_MegamiTensei_11_12MazurkaMazurkaCorridor",
+      "seed": 42,
+      "prompt_tokens": 228,
+      "generated_tokens": 673,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": true
+    },
+    {
+      "name": "002_1943_TheBattleofMidway_12_13AttackTarget",
+      "seed": 43,
+      "prompt_tokens": 173,
+      "generated_tokens": 628,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": true
+    },
+    {
+      "name": "183_Karnov_05_06FinalBattle",
+      "seed": 44,
+      "prompt_tokens": 78,
+      "generated_tokens": 566,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": true
+    },
+    {
+      "name": "164_Hogan_sAlley_00_01TitleScreen",
+      "seed": 45,
+      "prompt_tokens": 170,
+      "generated_tokens": 518,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": true
+    },
+    {
+      "name": "389_WreckingCrew_04_05GoldenHammer",
+      "seed": 46,
+      "prompt_tokens": 482,
+      "generated_tokens": 616,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": true
+    },
+    {
+      "name": "037_BoobyKids_07_08BoobyMarch",
+      "seed": 47,
+      "prompt_tokens": 252,
+      "generated_tokens": 542,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "256_OperationWolf_01_02OperationStart",
+      "seed": 48,
+      "prompt_tokens": 199,
+      "generated_tokens": 640,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "016_ArkanoidII_02_03Introduction",
+      "seed": 49,
+      "prompt_tokens": 159,
+      "generated_tokens": 591,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "241_MiracleRopit_sAdventurein2100_02_03ThemeofGirl",
+      "seed": 50,
+      "prompt_tokens": 136,
+      "generated_tokens": 597,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "256_OperationWolf_02_03MissionAccomplished1",
+      "seed": 51,
+      "prompt_tokens": 169,
+      "generated_tokens": 624,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "290_Seicross_03_04BGM2",
+      "seed": 52,
+      "prompt_tokens": 400,
+      "generated_tokens": 603,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "183_Karnov_04_05HurryUp",
+      "seed": 53,
+      "prompt_tokens": 170,
+      "generated_tokens": 555,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "013_AlterEgo_07_08Congratulations",
+      "seed": 54,
+      "prompt_tokens": 195,
+      "generated_tokens": 611,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "194_KnightMove_08_092PlayersWin",
+      "seed": 55,
+      "prompt_tokens": 64,
+      "generated_tokens": 651,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "145_Golgo13_TopSecretEpisode_16_17EveChristy",
+      "seed": 56,
+      "prompt_tokens": 33,
+      "generated_tokens": 494,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "002_1943_TheBattleofMidway_08_09AntishipBattleC",
+      "seed": 57,
+      "prompt_tokens": 150,
+      "generated_tokens": 578,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "002_1943_TheBattleofMidway_07_08AirBattleC",
+      "seed": 58,
+      "prompt_tokens": 184,
+      "generated_tokens": 629,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "013_AlterEgo_08_09GameOver",
+      "seed": 59,
+      "prompt_tokens": 355,
+      "generated_tokens": 568,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "071_DigitalDevilStory_MegamiTensei_09_10ValhallaValhallaCorridor",
+      "seed": 60,
+      "prompt_tokens": 111,
+      "generated_tokens": 579,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "071_DigitalDevilStory_MegamiTensei_13_14HellfireCorrodingSeaofFlames",
+      "seed": 61,
+      "prompt_tokens": 263,
+      "generated_tokens": 577,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "176_InsectorX_03_04PlateauAreaRound2",
+      "seed": 62,
+      "prompt_tokens": 97,
+      "generated_tokens": 614,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "214_MadoolanoTsubasa_03_04MainUnderground",
+      "seed": 63,
+      "prompt_tokens": 145,
+      "generated_tokens": 543,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "002_1943_TheBattleofMidway_06_07FailedintheAttack",
+      "seed": 64,
+      "prompt_tokens": 231,
+      "generated_tokens": 590,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "194_KnightMove_00_01MenuOption",
+      "seed": 65,
+      "prompt_tokens": 36,
+      "generated_tokens": 392,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "071_DigitalDevilStory_MegamiTensei_03_04DaedalusDaedalusTower",
+      "seed": 66,
+      "prompt_tokens": 153,
+      "generated_tokens": 582,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "242_MississippiSatsujinJiken_05_06NelsonsTheme",
+      "seed": 67,
+      "prompt_tokens": 69,
+      "generated_tokens": 614,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "237_MightyBombJack_08_09Sky",
+      "seed": 68,
+      "prompt_tokens": 192,
+      "generated_tokens": 619,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "241_MiracleRopit_sAdventurein2100_08_09ThemeofMiracleRopitunusedversion",
+      "seed": 69,
+      "prompt_tokens": 36,
+      "generated_tokens": 608,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "361_Transformers_ConvoynoNazo_08_09Unknown",
+      "seed": 70,
+      "prompt_tokens": 78,
+      "generated_tokens": 634,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "145_Golgo13_TopSecretEpisode_14_15HerodesConcertHall",
+      "seed": 71,
+      "prompt_tokens": 35,
+      "generated_tokens": 530,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "071_DigitalDevilStory_MegamiTensei_10_11PowerAttackBoss",
+      "seed": 72,
+      "prompt_tokens": 412,
+      "generated_tokens": 630,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "145_Golgo13_TopSecretEpisode_23_24Unused2",
+      "seed": 73,
+      "prompt_tokens": 208,
+      "generated_tokens": 583,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "194_KnightMove_07_08Congratulations",
+      "seed": 74,
+      "prompt_tokens": 44,
+      "generated_tokens": 520,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "085_DragonBusterII_YaminoFuuin_07_08Invincible",
+      "seed": 75,
+      "prompt_tokens": 157,
+      "generated_tokens": 645,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "285_Route16Turbo_02_03Normal",
+      "seed": 76,
+      "prompt_tokens": 120,
+      "generated_tokens": 624,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "286_Rygar_14_15Lapis",
+      "seed": 77,
+      "prompt_tokens": 114,
+      "generated_tokens": 624,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "002_1943_TheBattleofMidway_01_02PowerUpYourP38",
+      "seed": 78,
+      "prompt_tokens": 223,
+      "generated_tokens": 607,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "265_PokerJ_ngl_ng_01_02PokerJinglingTitleScreen",
+      "seed": 79,
+      "prompt_tokens": 123,
+      "generated_tokens": 616,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "285_Route16Turbo_01_02Easy",
+      "seed": 80,
+      "prompt_tokens": 119,
+      "generated_tokens": 724,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "038_BubbleBobble_02_03SecretRoom",
+      "seed": 81,
+      "prompt_tokens": 156,
+      "generated_tokens": 562,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "241_MiracleRopit_sAdventurein2100_07_08ThemeofBonusZone",
+      "seed": 82,
+      "prompt_tokens": 113,
+      "generated_tokens": 612,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "361_Transformers_ConvoynoNazo_04_05UCube",
+      "seed": 83,
+      "prompt_tokens": 76,
+      "generated_tokens": 531,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "116_FelixtheCat_08_09Northpole",
+      "seed": 84,
+      "prompt_tokens": 208,
+      "generated_tokens": 585,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "286_Rygar_19_20Ending",
+      "seed": 85,
+      "prompt_tokens": 155,
+      "generated_tokens": 579,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "038_BubbleBobble_00_01IntroductionMainTheme",
+      "seed": 86,
+      "prompt_tokens": 140,
+      "generated_tokens": 569,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "338_TerraCresta_09_10EditMode",
+      "seed": 87,
+      "prompt_tokens": 129,
+      "generated_tokens": 575,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "265_PokerJ_ngl_ng_04_05AVPokerMainBGM1",
+      "seed": 88,
+      "prompt_tokens": 287,
+      "generated_tokens": 607,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "116_FelixtheCat_07_08Tropics",
+      "seed": 89,
+      "prompt_tokens": 165,
+      "generated_tokens": 581,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "379_WardnernoMori_00_01TitleScreen",
+      "seed": 90,
+      "prompt_tokens": 123,
+      "generated_tokens": 557,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "338_TerraCresta_10_11Unknown",
+      "seed": 91,
+      "prompt_tokens": 428,
+      "generated_tokens": 552,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "145_Golgo13_TopSecretEpisode_03_04Cutscene1ActionStage4",
+      "seed": 92,
+      "prompt_tokens": 65,
+      "generated_tokens": 581,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "015_Arkanoid_03_04Ending",
+      "seed": 93,
+      "prompt_tokens": 220,
+      "generated_tokens": 668,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "124_FleetCommander_00_01Title",
+      "seed": 94,
+      "prompt_tokens": 128,
+      "generated_tokens": 589,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "116_FelixtheCat_09_10Space",
+      "seed": 95,
+      "prompt_tokens": 197,
+      "generated_tokens": 635,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "338_TerraCresta_05_06Dycoon",
+      "seed": 96,
+      "prompt_tokens": 673,
+      "generated_tokens": 606,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "085_DragonBusterII_YaminoFuuin_01_02Demo",
+      "seed": 97,
+      "prompt_tokens": 183,
+      "generated_tokens": 579,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "002_1943_TheBattleofMidway_11_12Ayako",
+      "seed": 98,
+      "prompt_tokens": 228,
+      "generated_tokens": 558,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "242_MississippiSatsujinJiken_10_11MainThemeExtended",
+      "seed": 99,
+      "prompt_tokens": 131,
+      "generated_tokens": 615,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "158_HikarinoSenshiPhoton_WakuseiZoldiasnoTatakai_09_10Area23",
+      "seed": 100,
+      "prompt_tokens": 215,
+      "generated_tokens": 644,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "183_Karnov_00_01Opening",
+      "seed": 101,
+      "prompt_tokens": 68,
+      "generated_tokens": 541,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "037_BoobyKids_02_03BoobySamba",
+      "seed": 102,
+      "prompt_tokens": 175,
+      "generated_tokens": 618,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "145_Golgo13_TopSecretEpisode_02_03MainTheme",
+      "seed": 103,
+      "prompt_tokens": 335,
+      "generated_tokens": 598,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "013_AlterEgo_05_06Level4",
+      "seed": 104,
+      "prompt_tokens": 441,
+      "generated_tokens": 607,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "183_Karnov_06_07AllCleared",
+      "seed": 105,
+      "prompt_tokens": 232,
+      "generated_tokens": 634,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "085_DragonBusterII_YaminoFuuin_12_13NorthernEuropeRound6",
+      "seed": 106,
+      "prompt_tokens": 231,
+      "generated_tokens": 662,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "231_MetalFighter__01_02ItemBGMEndingBGM",
+      "seed": 107,
+      "prompt_tokens": 85,
+      "generated_tokens": 543,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "214_MadoolanoTsubasa_08_09Ending",
+      "seed": 108,
+      "prompt_tokens": 75,
+      "generated_tokens": 611,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "124_FleetCommander_01_02Ending",
+      "seed": 109,
+      "prompt_tokens": 38,
+      "generated_tokens": 588,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "194_KnightMove_04_05Umasakaba",
+      "seed": 110,
+      "prompt_tokens": 88,
+      "generated_tokens": 567,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "071_DigitalDevilStory_MegamiTensei_02_03MicomStartingMicomCity",
+      "seed": 111,
+      "prompt_tokens": 320,
+      "generated_tokens": 537,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "242_MississippiSatsujinJiken_00_01MainTheme",
+      "seed": 112,
+      "prompt_tokens": 133,
+      "generated_tokens": 595,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "013_AlterEgo_02_03Level2",
+      "seed": 113,
+      "prompt_tokens": 171,
+      "generated_tokens": 624,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "272_Quarth_02_03TheMenaceoftheBlock",
+      "seed": 114,
+      "prompt_tokens": 715,
+      "generated_tokens": 510,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "237_MightyBombJack_11_12Ending",
+      "seed": 115,
+      "prompt_tokens": 221,
+      "generated_tokens": 587,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "071_DigitalDevilStory_MegamiTensei_12_13PrayJakyou",
+      "seed": 116,
+      "prompt_tokens": 159,
+      "generated_tokens": 479,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "085_DragonBusterII_YaminoFuuin_10_11WilderAppearance",
+      "seed": 117,
+      "prompt_tokens": 242,
+      "generated_tokens": 603,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "265_PokerJ_ngl_ng_05_06AVPokerMainBGM2",
+      "seed": 118,
+      "prompt_tokens": 147,
+      "generated_tokens": 654,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "338_TerraCresta_08_09MarchingRaster",
+      "seed": 119,
+      "prompt_tokens": 131,
+      "generated_tokens": 628,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "016_ArkanoidII_01_02Story",
+      "seed": 120,
+      "prompt_tokens": 179,
+      "generated_tokens": 581,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "285_Route16Turbo_03_04Difficult",
+      "seed": 121,
+      "prompt_tokens": 208,
+      "generated_tokens": 533,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "286_Rygar_05_06IndoraGodJPVersion",
+      "seed": 122,
+      "prompt_tokens": 59,
+      "generated_tokens": 529,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "158_HikarinoSenshiPhoton_WakuseiZoldiasnoTatakai_02_03Area12",
+      "seed": 123,
+      "prompt_tokens": 139,
+      "generated_tokens": 577,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "237_MightyBombJack_01_02MainBGM",
+      "seed": 124,
+      "prompt_tokens": 138,
+      "generated_tokens": 599,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "128_FormationZ_00_01TitleScreen",
+      "seed": 125,
+      "prompt_tokens": 79,
+      "generated_tokens": 575,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "038_BubbleBobble_03_04FalseEnding",
+      "seed": 126,
+      "prompt_tokens": 67,
+      "generated_tokens": 597,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "141_Ghostbusters_01_02MainBGM",
+      "seed": 127,
+      "prompt_tokens": 108,
+      "generated_tokens": 606,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "116_FelixtheCat_12_13Ending",
+      "seed": 128,
+      "prompt_tokens": 93,
+      "generated_tokens": 641,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "071_DigitalDevilStory_MegamiTensei_07_08WindowLightShop",
+      "seed": 129,
+      "prompt_tokens": 267,
+      "generated_tokens": 645,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "085_DragonBusterII_YaminoFuuin_03_04ForestRound12",
+      "seed": 130,
+      "prompt_tokens": 202,
+      "generated_tokens": 407,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "237_MightyBombJack_05_06Labyrinth",
+      "seed": 131,
+      "prompt_tokens": 186,
+      "generated_tokens": 601,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "013_AlterEgo_03_04Level2Alternate",
+      "seed": 132,
+      "prompt_tokens": 265,
+      "generated_tokens": 662,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "214_MadoolanoTsubasa_04_05MainTowerCastle",
+      "seed": 133,
+      "prompt_tokens": 142,
+      "generated_tokens": 667,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "241_MiracleRopit_sAdventurein2100_05_06ThemeofUniverse",
+      "seed": 134,
+      "prompt_tokens": 181,
+      "generated_tokens": 586,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "038_BubbleBobble_05_06RealEnding",
+      "seed": 135,
+      "prompt_tokens": 128,
+      "generated_tokens": 588,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "176_InsectorX_12_13NameEntry",
+      "seed": 136,
+      "prompt_tokens": 126,
+      "generated_tokens": 572,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "071_DigitalDevilStory_MegamiTensei_16_17AnfiniAnfiniPalace",
+      "seed": 137,
+      "prompt_tokens": 137,
+      "generated_tokens": 664,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "241_MiracleRopit_sAdventurein2100_03_04ThemeoftheEnemyBaseandCave",
+      "seed": 138,
+      "prompt_tokens": 88,
+      "generated_tokens": 610,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "158_HikarinoSenshiPhoton_WakuseiZoldiasnoTatakai_13_14Area32",
+      "seed": 139,
+      "prompt_tokens": 157,
+      "generated_tokens": 640,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "308_StarForce_02_03Purser",
+      "seed": 140,
+      "prompt_tokens": 101,
+      "generated_tokens": 607,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    },
+    {
+      "name": "085_DragonBusterII_YaminoFuuin_05_06DragonMountainClearDemo",
+      "seed": 141,
+      "prompt_tokens": 166,
+      "generated_tokens": 572,
+      "generated_seconds": 12.0,
+      "stop_reason": "limite de duração",
+      "wav": false
+    }
+  ]
+}

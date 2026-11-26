@@ -26,6 +26,7 @@ NES-MDB. *Desvio de altura* = |altura média da continuação − altura média 
 |---|---|---|---|---|---|
 | Transformer | 100 | 15,12 | 3,37 | 0,186 | 5,38 |
 | LSTM | 100 | 13,33 | 3,31 | 0,208 | 7,62 |
+| Markov | 100 | 14,50 | 4,00 | 0,237 | 8,47 |
 | Referência (real) | 100 | 15,08 | 3,28 | 0,220 | 3,30 |
 
 ![Distribuições das métricas por música](boxplots_amostras.png)
@@ -40,7 +41,7 @@ O n em cada grupo indica quantas músicas têm valor definido para a métrica.
 |---|---:|---:|---:|---:|
 | Transformer | 2,083 | 2,606 | 0,878 | 0,778 |
 | LSTM | 2,210 | 2,681 | 0,870 | 0,784 |
-| Markov | — | — | — | — |
+| Markov | 2,764 | 3,435 | 0,714 | 0,659 |
 | Referência (real) | 2,165 | 2,657 | 0,903 | 0,850 |
 
 Os valores da tabela são médias por música, considerando as amostras com valor definido
@@ -64,6 +65,7 @@ Por voz (notas por segundo / fração do tempo soando / alturas distintas):
 |---|---|---|---|---|
 | Transformer | 3,91 / 0,71 / 9,6 | 4,36 / 0,69 / 9,3 | 4,36 / 0,50 / 8,6 | 2,49 / 0,26 / 1,9 |
 | LSTM | 3,08 / 0,76 / 11,2 | 3,51 / 0,76 / 10,6 | 3,64 / 0,45 / 8,7 | 3,10 / 0,26 / 3,5 |
+| Markov | 3,21 / 0,93 / 22,1 | 1,87 / 0,91 / 15,8 | 2,50 / 0,87 / 18,3 | 6,91 / 0,70 / 14,5 |
 | Referência (real) | 3,85 / 0,76 / 9,3 | 4,09 / 0,75 / 9,8 | 3,52 / 0,51 / 6,8 | 3,62 / 0,25 / 1,6 |
 
 Vozes: p1 e p2 = pulsos, tr = triângulo, no = ruído (a "altura" do ruído é o período, 1–16).
