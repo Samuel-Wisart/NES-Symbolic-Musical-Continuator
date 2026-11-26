@@ -373,7 +373,7 @@ def main():
     models = load_models()
     sample_rows = load_samples()
     if not models:
-        raise SystemExit("Nenhum resultados/<modelo>/test_metrics.json encontrado. Rode antes o step04.")
+        raise SystemExit("Nenhum arquivo resultados/<modelo>/test_metrics.json encontrado. Rode o step04 antes.")
     samples = {
         key: {"songs": len(rows), **{metric: mean_of(rows, metric) for metric in rows[0]}}
         for key, rows in sample_rows.items()

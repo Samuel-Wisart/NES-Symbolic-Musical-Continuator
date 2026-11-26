@@ -88,7 +88,7 @@ Os testes do Transformer e de Markov precisam do dataset preparado.
 | Lucas Rezende | Organização do Dataset, Implementação da representação e seus testes, Parte do Markov, Relatório |
 | Luiza | AAAA |
 | Samuel | AAAAA |
-| Wilian | Parte do Markov, Relatório |
+| Wilian | Auxilio no desenvolvimento do modelo baseline (Markov) usado e na criação do artigo final. |
 
 ## Uso de ferramentas de IA
 - Ajuda com os comentários do código, formatação e organização dos dados.

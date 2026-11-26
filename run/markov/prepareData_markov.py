@@ -203,7 +203,7 @@ def main():
     files = get_midi_files()
     tokenize_dataset(files)
 
-    print("\nDataset preparado no capricho.")
+    print("\nDataset preparado.")
     print("Saída:", OUTPUT_DIR)
 
 if __name__ == "__main__":
