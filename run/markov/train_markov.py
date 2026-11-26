@@ -5,32 +5,34 @@ Treina uma cadeia de Markov de ordem 1 sobre os tokens MIDI-Like
 produzidos pelo step01. Salva a matriz de transição normalizada
 e a distribuição global (fallback para linhas vazias).
 
-
 Também mede a perplexidade no split de validação, comparada a um
 baseline unigrama, para dar uma métrica objetiva do modelo.
 """
 
+### Imports
 from pathlib import Path
 import json
 import numpy as np
 
+### Caminhos
 ROOT = Path(__file__).resolve().parents[2]
 PROCESSED = ROOT / "data" / "processed" / "nesmdb"
 TOKENS_DIR = PROCESSED / "tokens" / "train"
 VALID_DIR = PROCESSED / "tokens" / "valid"
 MATRIX_PATH = PROCESSED / "markov_order1.npz"
 
+### Suavização
 # Peso do unigrama ao avaliar (evita probabilidade zero em transições não vistas)
 SMOOTHING = 0.01
 
-
+### Leitura dos tokens
 def carregar_ids(pasta):
     """Itera sobre todas as sequências de IDs em um split."""
     for npz_path in sorted(pasta.glob("*.npz")):
         with np.load(npz_path) as data:
             yield data["ids"]
 
-
+### Contagem de transições
 def contar_transicoes(pasta, vocab_size):
     """Conta transições a->b de forma vetorizada."""
     counts = np.zeros(vocab_size * vocab_size, dtype=np.float64)
@@ -50,7 +52,7 @@ def contar_transicoes(pasta, vocab_size):
 
     return counts.reshape(vocab_size, vocab_size), n_musicas
 
-
+### Treinamento
 def treinar_order1(pasta, vocab_size):
     counts, n_musicas = contar_transicoes(pasta, vocab_size)
 
@@ -65,7 +67,7 @@ def treinar_order1(pasta, vocab_size):
 
     return probs, global_probs, n_musicas
 
-
+### Avaliação
 def perplexidade(pasta, probs, global_probs, peso_unigrama):
     """Perplexidade por token. peso_unigrama=1.0 equivale ao baseline unigrama."""
     log_lik, n = 0.0, 0
@@ -81,7 +83,7 @@ def perplexidade(pasta, probs, global_probs, peso_unigrama):
 
     return float(np.exp(-log_lik / n)) if n else float("nan")
 
-
+### Execução
 def main():
     vocab = json.loads((PROCESSED / "vocab.json").read_text(encoding="utf-8"))
     vocab_size = len(vocab)

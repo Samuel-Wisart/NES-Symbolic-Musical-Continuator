@@ -1,32 +1,4 @@
-"""
-protocol
-
-Protocolo de avaliação e geração compartilhado entre o Transformer e o Markov.
-
-Avaliação (perplexidade):
-    perplexidade = exp(média da entropia cruzada, em log natural, de todos os
-    tokens depois do BOS em cada música de teste). São TEST_TARGET_TOKENS
-    tokens, a soma de len(ids) - 1 nos .npz de teste.
-
-Geração:
-    Para cada música de PROMPT_SONGS (nesta ordem), o prompt são os primeiros
-    PROMPT_SECONDS segundos dos tokens de teste, cortados exatamente nesse ponto
-    (um TIME_SHIFT que atravessa o corte é dividido), sem EOS e com as notas
-    abertas continuando abertas. A continuação tem exatamente GEN_SECONDS
-    segundos: EOS não é permitido antes de MIN_GEN_SECONDS (= GEN_SECONDS) e
-    nenhum TIME_SHIFT pode passar do limite. Amostragem com TEMPERATURE e
-    TOP_K, semente generation_seed(i) para a i-ésima música. No fim, as notas
-    abertas são fechadas.
-
-    A máscara de eventos válidos (nes_continuation.sampling.allowed_tokens) não
-    depende do modelo e pode ser usada pelo Markov:
-      - nunca PAD nem BOS;
-      - NOTE_ON só em voz sem nota soando;
-      - NOTE_OFF só para (voz, pitch) aberto, e não no passo do próprio NOTE_ON;
-      - EOS só depois de MIN_GEN_SECONDS; TIME_SHIFT sem passar de GEN_SECONDS.
-    Utilitários do corte e do fechamento: nes_continuation.representation
-    (cut_prompt, close_open_notes, write_midi).
-"""
+"""Define o protocolo compartilhado de avaliação e geração dos modelos."""
 
 ### Imports
 from pathlib import Path
@@ -41,7 +13,7 @@ REFERENCE_NAME = "referencia"
 MODELS = ("transformer", "lstm")
 
 def checkpoint_path(model):
-    """best.pt do treino local (runs/<modelo>/) ou, se não houver, o modelo entregue em resultados/<modelo>/."""
+    """Retorna o checkpoint local ou o modelo entregue em resultados/."""
     trained = ROOT / "runs" / model / "best.pt"
     return trained if trained.exists() else RESULTS_DIR / model / "modelo.pt"
 
@@ -61,12 +33,8 @@ TOP_K = 32
 # Quantas continuações também viram WAV (as primeiras da lista).
 N_WAV = 5
 
-# Sorteadas uma vez com random.Random(SEED).sample(elegíveis, N_PROMPTS), onde
-# elegíveis = nomes (em ordem alfabética) das músicas de teste com pelo menos
-# PROMPT_SECONDS + 2 segundos (259 músicas). Ficam fixas aqui; o
-# tests/test02_transformer_tests.py confere que a lista segue essa regra.
-# N_PROMPTS passou de 50 para 100 a pedido do professor (2026-11-24); o sorteio do
-# CPython é sequencial, então os 50 primeiros são a lista original.
+# Seleção reproduzível entre músicas com pelo menos PROMPT_SECONDS + 2 s.
+# A lista fixa mantém os mesmos prompts entre execuções.
 PROMPT_SONGS = (
     "071_DigitalDevilStory_MegamiTensei_11_12MazurkaMazurkaCorridor",
     "002_1943_TheBattleofMidway_12_13AttackTarget",

@@ -1,21 +1,24 @@
-"""Modelos do próximo token em PyTorch nativo: Transformer somente decodificador e LSTM.
+"""
+model
 
-As duas arquiteturas usam o mesmo vocabulário (os 1155 tokens do step01), o mesmo
-compartilhamento de pesos entre embedding e saída e a mesma interface
-(`model(tokens) -> logits`, `model.config.context`), então treino, avaliação e
-geração são os mesmos. `build_model(config)` escolhe pela `config.arch`.
+Define o Transformer causal e o LSTM que predizem o próximo token.
+
+Ambos usam o vocabulário do step01, compartilham os pesos de entrada e saída e
+implementam `model(tokens) -> logits`. `build_model(config)` seleciona a arquitetura.
 """
 
+### Imports
 from dataclasses import dataclass
 
 import torch
 from torch import nn
 from torch.nn import functional as F
 
-# len(VOCAB) do step01: os 1155 tokens, inclusive os que nunca aparecem nos dados.
+# Usa o vocabulário completo do step01, inclusive tokens ausentes nos dados.
 from .representation import VOCAB_SIZE
 
 
+### Configuração
 ARCHITECTURES = ("transformer", "lstm")
 
 
@@ -26,7 +29,7 @@ class ModelConfig:
     heads: int = 8
     layers: int = 6
     dropout: float = 0.1
-    # Checkpoints antigos (sem este campo) são do Transformer.
+    # Checkpoints sem `arch` usam o Transformer por padrão.
     arch: str = "transformer"
 
     def __post_init__(self) -> None:
@@ -39,7 +42,7 @@ class ModelConfig:
         if not 0.0 <= self.dropout < 1.0:
             raise ValueError("dropout deve estar em [0, 1)")
 
-
+### Bloco causal
 class CausalBlock(nn.Module):
     def __init__(self, config: ModelConfig) -> None:
         super().__init__()
@@ -69,7 +72,7 @@ class CausalBlock(nn.Module):
         hidden = hidden + self.residual_dropout(self.attention_out(attended))
         return hidden + self.residual_dropout(self.ff(self.ff_norm(hidden)))
 
-
+### Transformer
 class NESTransformer(nn.Module):
     def __init__(self, config: ModelConfig = ModelConfig()) -> None:
         super().__init__()
@@ -97,18 +100,16 @@ class NESTransformer(nn.Module):
         hidden = self.embedding_dropout(hidden)
         for block in self.blocks:
             hidden = block(hidden)
-        # Compartilhamento de pesos entre a projeção de saída e o embedding de entrada.
+        # Reutiliza o embedding como projeção de saída.
         return F.linear(self.final_norm(hidden), self.token_embedding.weight)
 
-
+### LSTM
 class NESLSTM(nn.Module):
-    """LSTM empilhado sobre os mesmos tokens, janelas e saída compartilhada do Transformer.
+    """LSTM com as mesmas janelas e o mesmo vocabulário do Transformer.
 
-    `context` é o comprimento da janela (BPTT truncado: o estado começa zerado em cada
-    janela, como o Transformer, que também só vê a janela), para que os dois modelos
-    vejam exatamente os mesmos dados. `width` é a dimensão do embedding e do estado;
-    `heads` não é usado. O LSTM roda em FP32 mesmo dentro do autocast (BF16/FP16),
-    porque o suporte do cuDNN a RNN em BF16 depende da versão; o resto segue o autocast.
+    `context` define o tamanho da janela e `width` a dimensão do embedding e do
+    estado. `heads` não é usado. A camada roda em FP32 por compatibilidade com
+    versões do cuDNN que não aceitam BF16 em RNNs.
     """
 
     def __init__(self, config: ModelConfig) -> None:
@@ -132,10 +133,10 @@ class NESLSTM(nn.Module):
         with torch.autocast(device_type=tokens.device.type, enabled=False):
             hidden, _ = self.lstm(hidden.float())
         hidden = self.final_norm(self.output_dropout(hidden))
-        # Mesmo compartilhamento de pesos do Transformer: saída = embedding transposto.
+        # Reutiliza o embedding como projeção de saída.
         return F.linear(hidden, self.token_embedding.weight)
 
-
+### Construção do modelo
 def build_model(config: ModelConfig) -> nn.Module:
     """Instancia a arquitetura indicada em config.arch."""
     return {"transformer": NESTransformer, "lstm": NESLSTM}[config.arch](config)

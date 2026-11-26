@@ -1,8 +1,12 @@
-"""Janelas para previsão do próximo token nas partições oficiais.
+"""
+data
+
+Janelas para previsão do próximo token nas partições oficiais.
 
 Lê os tokens já preparados pelo step01 (um .npz por música, chave "ids").
 """
 
+### Imports
 from pathlib import Path
 
 import numpy as np
@@ -13,6 +17,7 @@ from torch.utils.data import Dataset
 from .representation import PAD, TOKENS_DIR, load_ids, token_files
 
 
+### Janelas de treino
 class NESWindows(Dataset):
     def __init__(
         self,
@@ -36,8 +41,8 @@ class NESWindows(Dataset):
         self.names: list[str] = []
         self.songs: list[np.ndarray] = []
         self.windows: list[tuple[int, int]] = []
-        # Número de alvos (todos os tokens depois do BOS); com stride = context
-        # cada alvo aparece em exatamente uma janela.
+        # Conta os tokens depois do BOS. Com stride = context, cada alvo aparece
+        # em uma única janela.
         self.target_count = 0
         for path in paths:
             tokens = load_ids(path).astype(np.uint16)
@@ -65,20 +70,18 @@ class NESWindows(Dataset):
         tokens = self.songs[song_index][start:start + self.context + 1]
         return torch.from_numpy(tokens.astype(np.int64))
 
-
 def collate_windows(windows: list[torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
     """Retorna entradas e alvos deslocados em uma posição, com PAD à direita."""
     padded = pad_sequence(windows, batch_first=True, padding_value=PAD)
     return padded[:, :-1].contiguous(), padded[:, 1:].contiguous()
 
-
+### Janelas de avaliação
 class ScoringWindows(Dataset):
-    """Janelas de avaliação em que cada token depois do BOS é pontuado exatamente uma vez.
+    """Cria janelas que pontuam cada token depois do BOS uma única vez.
 
-    As janelas andam `stride` tokens; cada uma pontua só os alvos que a anterior
-    ainda não pontuou. Com stride = context as janelas são disjuntas; com
-    stride < context, todo alvo fora da primeira janela de cada música tem pelo
-    menos context - stride tokens de histórico.
+    Avança `stride` tokens por janela e ignora os alvos já pontuados. Com
+    `stride=context`, as janelas não se sobrepõem. Com stride menor, cada alvo
+    recebe pelo menos `context - stride` tokens de histórico.
     """
 
     def __init__(
@@ -96,7 +99,7 @@ class ScoringWindows(Dataset):
         self.context = context
         self.names: list[str] = []
         self.songs: list[np.ndarray] = []
-        # (música, início, quantos alvos do começo da janela já foram pontuados)
+        # Guarda (música, início da janela, alvos iniciais já pontuados).
         self.windows: list[tuple[int, int, int]] = []
         self.target_count = 0
         for path in token_files(split, root)[:limit]:
@@ -123,7 +126,6 @@ class ScoringWindows(Dataset):
         song_index, start, skip = self.windows[index]
         tokens = self.songs[song_index][start:start + self.context + 1]
         return torch.from_numpy(tokens.astype(np.int64)), skip
-
 
 def collate_scoring(windows: list[tuple[torch.Tensor, int]]) -> tuple[torch.Tensor, torch.Tensor]:
     """Como collate_windows, mas troca por PAD (ignorado na loss) os alvos já pontuados."""

@@ -12,10 +12,10 @@ chiptune próprio (só numpy) que imita os canais do NES:
 Uso:
     python midi_to_audio.py
     python midi_to_audio.py --input-dir caminho/midis --output-dir caminho/wavs
-    python midi_to_audio.py --overwrite --mp3      # mp3 requer ffmpeg instalado
-     
+    python midi_to_audio.py --overwrite --mp3
 """
 
+### Imports
 import argparse
 import shutil
 import subprocess
@@ -25,10 +25,12 @@ from pathlib import Path
 import numpy as np
 import pretty_midi
 
+### Caminhos
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_INPUT = ROOT / "output" / "markov_samples"
 DEFAULT_OUTPUT = ROOT / "output" / "markov_audio"
 
+### Configuração da síntese
 ATTACK = 0.002   # s, evita clique no início da nota
 RELEASE = 0.010  # s, evita clique no fim da nota
 TAIL = 0.3       # s de silêncio no final do arquivo
@@ -42,6 +44,7 @@ NOISE_BASE_HZ = 1000.0    # taxa de troca do ruído no pitch base (sobe 1 oitava
 NOISE_DECAY_S = 0.10      # constante de decaimento do ruído
 
 
+### Seleção de voz
 def tipo_voz(inst):
     """Decide qual voz sintetizar a partir do nome/tipo do instrumento."""
     nome = inst.name.lower().strip()
@@ -49,7 +52,7 @@ def tipo_voz(inst):
         return "no"
     return nome if nome in ("p1", "p2", "tr") else "p2"
 
-
+### Síntese de notas
 def sintetizar_nota(voz, pitch, duracao, sr, rng):
     """Gera a forma de onda de uma nota (já com envelope)."""
     n_corpo = max(1, int(duracao * sr))
@@ -58,7 +61,7 @@ def sintetizar_nota(voz, pitch, duracao, sr, rng):
     t = np.arange(n) / sr
 
     if voz == "no":
-        # Ruído amostrado-e-segurado; pitch maior = troca mais rápida = mais agudo
+        # Ruído amostrado-e-segurado. Pitch maior = troca mais rápida = mais agudo
         freq = min(NOISE_BASE_HZ * 2 ** ((pitch - NOISE_BASE_PITCH) / 12), sr / 2)
         valores = rng.choice([-1.0, 1.0], size=int(t[-1] * freq) + 2)
         onda = valores[(t * freq).astype(int)]
@@ -81,7 +84,7 @@ def sintetizar_nota(voz, pitch, duracao, sr, rng):
 
     return onda * env
 
-
+### Renderização de MIDI
 def renderizar(midi_path, sr):
     """Renderiza um MIDI inteiro em um array mono float em [-1, 1]."""
     midi = pretty_midi.PrettyMIDI(str(midi_path))
@@ -108,7 +111,7 @@ def renderizar(midi_path, sr):
         buf *= 0.9 / pico  # normaliza para evitar clipping
     return buf
 
-
+### Exportação de áudio
 def salvar_wav(path, audio, sr):
     pcm = (np.clip(audio, -1, 1) * 32767).astype("<i2")
     with wave.open(str(path), "wb") as w:
@@ -117,7 +120,6 @@ def salvar_wav(path, audio, sr):
         w.setframerate(sr)
         w.writeframes(pcm.tobytes())
 
-
 def wav_para_mp3(wav_path):
     mp3_path = wav_path.with_suffix(".mp3")
     subprocess.run(
@@ -125,7 +127,7 @@ def wav_para_mp3(wav_path):
         check=True,
     )
 
-
+### Execução
 def main(input_dir=DEFAULT_INPUT, output_dir=DEFAULT_OUTPUT, sample_rate=44100,
          overwrite=False, mp3=False):
     input_dir, output_dir = Path(input_dir), Path(output_dir)

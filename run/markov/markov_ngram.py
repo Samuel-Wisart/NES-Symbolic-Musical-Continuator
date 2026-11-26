@@ -12,9 +12,9 @@ Uso:
 O modelo é guardado de forma esparsa: cada par (contexto, próximo token) vira
 uma chave inteira, e as contagens ficam em arrays ordenados consultados por
 busca binária. Isso evita dicionários gigantes de tuplas.
- 
 """
 
+### Imports
 import argparse
 from pathlib import Path
 
@@ -26,16 +26,17 @@ from generate_markov import (
     _off_id, notas_para_midi,
 )
 
+### Configuração
 V = len(VOCAB)
 MAX_ORDER = 5  # V**(order+1) precisa caber em int64
 TOKENS = PROCESSED / "tokens"
 
 
+### Caminhos
 def model_path(order):
     return PROCESSED / f"ngram_order{order}.npz"
 
-
-# ----------------------------------------------------------------- modelo
+### Modelo
 class NGram:
     def __init__(self, niveis):
         """niveis: {k: (chaves_ordenadas, contagens)} para k = 1..order."""
@@ -133,10 +134,9 @@ class NGram:
             n += len(lp)
         return float(np.exp(-total / n)) if n else float("nan")
 
-
-# ------------------------------------------------------------- amostragem
+### Amostragem
 def _distribuicao(modelo, seq, valido, min_count):
-    """Maior contexto com suporte suficiente; senão faz backoff."""
+    """Maior contexto com suporte suficiente. Sem suporte, faz backoff."""
     for k in range(min(modelo.order, len(seq)), 0, -1):
         c = modelo.candidatos(k, seq[-k:])
         if c is None:
@@ -147,7 +147,6 @@ def _distribuicao(modelo, seq, valido, min_count):
         if ok.any() and cnts[ok].sum() >= minimo:
             return toks[ok], cnts[ok].astype(np.float64)
     return None
-
 
 def _escolher(toks, pesos, temperature, top_p, rng):
     logits = np.log(pesos) / temperature
@@ -165,7 +164,6 @@ def _escolher(toks, pesos, temperature, top_p, rng):
         w = w2 / w2.sum()
 
     return int(rng.choice(toks, p=w))
-
 
 def gerar(modelo, n_max=2000, min_tokens=200, temperature=1.0,
           top_p=0.9, min_count=2, rng=None):
@@ -212,8 +210,7 @@ def gerar(modelo, n_max=2000, min_tokens=200, temperature=1.0,
     seq.append(EOS_ID)
     return seq
 
-
-# -------------------------------------------------------------------- CLI
+### Dados para avaliação
 def carregar_split(nome):
     pasta = TOKENS / nome
     seqs = []
@@ -224,7 +221,7 @@ def carregar_split(nome):
         raise FileNotFoundError(f"Nenhum .npz em {pasta}")
     return seqs
 
-
+### Treinamento e geração
 def cmd_train(args):
     if not 1 <= args.order <= MAX_ORDER:
         raise ValueError(f"--order deve estar entre 1 e {MAX_ORDER}")
@@ -243,7 +240,7 @@ def cmd_train(args):
     modelo.salvar(model_path(args.order))
     print(f"Modelo salvo em {model_path(args.order)}")
 
-
+### Geração por CLI
 def cmd_generate(args):
     modelo = NGram.carregar(model_path(args.order))
     rng = np.random.default_rng(args.seed)
@@ -261,6 +258,7 @@ def cmd_generate(args):
         print(f"[{i:03d}] {len(ids):4d} tokens → {len(notes):4d} notas → {out.name}")
 
 
+### Execução
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     sub = parser.add_subparsers(dest="cmd", required=True)

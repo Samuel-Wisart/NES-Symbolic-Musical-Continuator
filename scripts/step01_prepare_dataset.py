@@ -35,7 +35,7 @@ TIME_RESOLUTION_HZ = 64
 SHIFT_MAX = 128
 
 ### Vocabulário
-# PAD auxilia batches; BOS e EOS delimitam cada música.
+# PAD auxilia batches. BOS e EOS delimitam cada música.
 VOCAB = (
     ["PAD", "BOS", "EOS"]
     + [f"TIME_SHIFT_{shift}" for shift in range(1, SHIFT_MAX + 1)]

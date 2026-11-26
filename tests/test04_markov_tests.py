@@ -1,4 +1,8 @@
-"""Valida a integração do Markov de ordem 1 com o protocolo compartilhado."""
+"""
+test04_markov_tests
+
+Valida a integração do Markov de ordem 1 com o protocolo compartilhado.
+"""
 
 from pathlib import Path
 import sys
@@ -20,7 +24,6 @@ def load_model():
     data = np.load(MATRIX_PATH)
     return data["probs"], data["global_probs"]
 
-
 def generate(index, probs, global_probs):
     path = protocol.prompt_paths()[index]
     ids = load_ids(path)
@@ -36,7 +39,6 @@ def generate(index, probs, global_probs):
         max_seconds=protocol.GEN_SECONDS,
     )
     return prompt, result
-
 
 def test_generation():
     probs, global_probs = load_model()
@@ -60,7 +62,6 @@ def test_generation():
 
         assert not NoteState(result["ids"]).open
 
-
 def test_reproducibility():
     probs, global_probs = load_model()
     prompt, first = generate(0, probs, global_probs)
@@ -75,7 +76,6 @@ def test_reproducibility():
         max_seconds=protocol.GEN_SECONDS,
     )
     assert np.array_equal(first["ids"], second["ids"])
-
 
 def main():
     tests = [test_generation, test_reproducibility]

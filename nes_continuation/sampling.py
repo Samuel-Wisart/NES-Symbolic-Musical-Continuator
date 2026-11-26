@@ -1,5 +1,10 @@
-"""Continuação autoregressiva condicionada por um prefixo de tokens do NES-MDB."""
+"""
+sampling
 
+Continuação autoregressiva condicionada por um prefixo de tokens do NES-MDB.
+"""
+
+### Imports
 import time
 from pathlib import Path
 
@@ -14,21 +19,12 @@ from .representation import (
 from .training import load_checkpoint, restore_model
 
 
+### Máscara de tokens válidos
 def allowed_tokens(state: NoteState, elapsed: int, minimum: int, maximum: int) -> np.ndarray:
-    """Máscara booleana (len(VOCAB),) dos tokens que podem vir a seguir.
+    """Retorna a máscara dos tokens válidos no estado atual.
 
-    - PAD e BOS nunca;
-    - EOS só depois de `minimum` passos de continuação;
-    - TIME_SHIFT só se não ultrapassar `maximum` passos de continuação;
-    - NOTE_ON só em voz sem nota soando (as vozes do NES são monofônicas; no
-      step01 o NOTE_OFF vem antes do NOTE_ON no mesmo passo);
-    - NOTE_OFF só para um (voz, pitch) aberto, e não no mesmo passo do NOTE_ON
-      correspondente: o step01 garante duração mínima de 1 passo e o decode()
-      descartaria uma nota de duração zero.
-
-    Como cada voz aceita no máximo um NOTE_ON por passo e cada NOTE_OFF fecha uma
-    nota, o número de tokens entre dois TIME_SHIFT é limitado: a geração sempre
-    termina ao atingir `maximum`.
+    Proíbe PAD e BOS, limita TIME_SHIFT ao tempo restante e só permite NOTE_ON
+    e NOTE_OFF compatíveis com as notas abertas. EOS fica bloqueado até `minimum`.
     """
     mask = np.zeros(VOCAB_SIZE, dtype=bool)
     mask[SHIFT_IDS[:max(0, min(maximum - elapsed, SHIFT_MAX))]] = True
@@ -41,7 +37,7 @@ def allowed_tokens(state: NoteState, elapsed: int, minimum: int, maximum: int) -
             mask[OFF_IDS[voice, pitch]] = True
     return mask
 
-
+### Amostragem
 @torch.inference_mode()
 def sample(
     model,
@@ -55,12 +51,10 @@ def sample(
     max_seconds: float = 12.0,
     max_new_tokens: int = 0,
 ) -> dict:
-    """Continua `prefix` até EOS, até `max_seconds` de música ou até `max_new_tokens` (0 = sem limite).
+    """Continua `prefix` até EOS ou até atingir um limite configurado.
 
-    Devolve a sequência completa: prompt, tokens amostrados, NOTE_OFF das notas
-    que ficaram abertas e EOS. `ids[prompt_length:prompt_length + generated_tokens]`
-    são exatamente os tokens amostrados, sem o EOS (se o modelo escolheu EOS,
-    `stop_reason` é "EOS").
+    Retorna prompt, tokens amostrados, fechamento de notas e EOS. A faixa indicada
+    por `generated_tokens` não inclui EOS.
     """
     minimum = seconds_to_steps(min_seconds)
     maximum = seconds_to_steps(max_seconds)
@@ -106,7 +100,7 @@ def sample(
         "stop_reason": reason,
     }
 
-
+### Salvamento
 def save_generation(result: dict, midi_path: Path, wav: bool = False) -> None:
     """Salva <nome>.npz (ids + prompt_length), <nome>.mid e, se pedido, <nome>.wav."""
     midi_path.parent.mkdir(parents=True, exist_ok=True)
@@ -119,7 +113,7 @@ def save_generation(result: dict, midi_path: Path, wav: bool = False) -> None:
     if wav:
         render_wav(midi_path, midi_path.with_suffix(".wav"))
 
-
+### Geração pela CLI
 def generate(args, device: torch.device) -> None:
     output: Path = args.output
     if output.suffix.lower() not in {".mid", ".midi"}:

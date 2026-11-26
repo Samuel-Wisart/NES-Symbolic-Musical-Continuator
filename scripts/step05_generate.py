@@ -7,14 +7,9 @@ scripts/protocol.py.
     python scripts/step05_generate.py --model transformer
     python scripts/step05_generate.py --model lstm
 
-Usa runs/<modelo>/best.pt ou, se não houver, o modelo entregue em
-resultados/<modelo>/modelo.pt. Para cada música de PROMPT_SONGS salva, em
-resultados/amostras/<modelo>/:
-    <nome>.npz  ids (prompt + continuação + fechamento + EOS) e prompt_length
-    <nome>.mid  MIDI com as trilhas p1, p2, tr e no
-    <nome>.wav  prévia chiptune (só as N_WAV primeiras; não versionada)
-e a referência real dos mesmos segundos, no mesmo formato, em
-resultados/amostras/referencia/. O summary.json de cada pasta resume a geração.
+Usa runs/<modelo>/best.pt ou o modelo exportado em resultados/<modelo>/modelo.pt.
+Salva os dados da geração, o MIDI e a referência real em resultados/amostras/.
+Também cria WAVs chiptune para as primeiras N_WAV amostras.
 """
 
 ### Imports
@@ -24,14 +19,14 @@ import argparse, json, sys, time
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import torch  # noqa: E402
+import torch
 
-from nes_continuation.representation import (  # noqa: E402
+from nes_continuation.representation import (
     TIME_RESOLUTION_HZ, cut_prompt, duration_steps, load_ids, reference_continuation,
 )
-from nes_continuation.sampling import sample, save_generation  # noqa: E402
-from nes_continuation.training import device_name, load_checkpoint, portable_path, restore_model  # noqa: E402
-import protocol  # noqa: E402
+from nes_continuation.sampling import sample, save_generation
+from nes_continuation.training import device_name, load_checkpoint, portable_path, restore_model
+import protocol
 
 ### Funções auxiliares
 def settings():

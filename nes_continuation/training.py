@@ -1,5 +1,10 @@
-"""Treinamento e avaliação por entropia cruzada do próximo token."""
+"""
+training
 
+Treinamento e avaliação por entropia cruzada do próximo token.
+"""
+
+### Imports
 import json
 import math
 import platform
@@ -18,9 +23,8 @@ from .model import ModelConfig, build_model
 from .representation import PAD, ROOT, VOCAB
 from .stop import should_stop
 
-# Versão 2: vocabulário do step01 (VOCAB) no lugar dos EVENTS do tokenizador antigo.
+### Checkpoints
 CHECKPOINT_VERSION = 2
-
 
 def load_checkpoint(path: Path) -> dict:
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
@@ -28,12 +32,10 @@ def load_checkpoint(path: Path) -> dict:
         raise ValueError(f"Checkpoint incompatível com a versão ou o vocabulário atual: {path}")
     return checkpoint
 
-
 def restore_model(checkpoint: dict, device: torch.device) -> torch.nn.Module:
     model = build_model(ModelConfig(**checkpoint["model_config"])).to(device)
     model.load_state_dict(checkpoint["model"])
     return model
-
 
 def save_checkpoint(checkpoint: dict, path: Path) -> None:
     with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as handle:
@@ -43,7 +45,6 @@ def save_checkpoint(checkpoint: dict, path: Path) -> None:
         temporary.replace(path)
     finally:
         temporary.unlink(missing_ok=True)
-
 
 def save_json(data, path: Path) -> None:
     """Grava JSON de forma atômica (temporário na mesma pasta + replace)."""
@@ -55,15 +56,13 @@ def save_json(data, path: Path) -> None:
     finally:
         temporary.unlink(missing_ok=True)
 
-
 def export_model(checkpoint: dict, path: Path) -> None:
-    """Grava só o que avaliação e geração precisam (pesos, configuração, época e histórico),
-    sem otimizador, GradScaler e RNGs: ~4x menor que o best.pt do treino."""
+    """Exporta os pesos e metadados necessários para avaliar e gerar músicas."""
     keys = ("version", "vocab", "model_config", "model", "epoch", "best_loss", "run_config", "history")
     path.parent.mkdir(parents=True, exist_ok=True)
     save_checkpoint({key: checkpoint[key] for key in keys if key in checkpoint}, path)
 
-
+### Dados
 def make_dataset(root: Path, split: str, context: int, limit: int | None) -> NESWindows:
     stride = None if split == "train" else context
     dataset = NESWindows(root, split, context=context, stride=stride, limit=limit)
@@ -74,7 +73,6 @@ def make_dataset(root: Path, split: str, context: int, limit: int | None) -> NES
     )
     return dataset
 
-
 def make_loader(
     dataset: NESWindows, batch_size: int, device: torch.device, seed: int | None = None,
 ) -> DataLoader:
@@ -84,28 +82,25 @@ def make_loader(
         collate_fn=collate_windows, pin_memory=device.type == "cuda",
     )
 
-
+### Loss e métricas
 def token_loss(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     return F.cross_entropy(
         logits.flatten(0, 1), targets.flatten(), ignore_index=PAD, reduction="sum",
     )
 
-
 def autocast_dtype(device: torch.device) -> torch.dtype | None:
-    """BF16 nas GPUs que suportam; FP16 (com GradScaler) nas demais GPUs; FP32 na CPU."""
+    """Escolhe BF16, FP16 ou FP32 conforme o suporte do dispositivo."""
     if device.type != "cuda":
         return None
     if torch.cuda.is_bf16_supported(including_emulation=False):
         return torch.bfloat16
     return torch.float16
 
-
 def precision_name(amp_dtype: torch.dtype | None) -> str:
     return {torch.bfloat16: "BF16 misto", torch.float16: "FP16 misto"}.get(amp_dtype, "FP32")
 
-
 def train_step(model, inputs, targets, optimizer, scaler, device, amp_dtype) -> tuple[torch.Tensor, int]:
-    """Um passo de otimização; devolve a soma da loss do lote e o número de tokens-alvo."""
+    """Atualiza os pesos e retorna a loss somada e o total de tokens-alvo."""
     tokens = int(targets.ne(PAD).sum())
     optimizer.zero_grad(set_to_none=True)
     inputs = inputs.to(device, non_blocking=True)
@@ -118,7 +113,6 @@ def train_step(model, inputs, targets, optimizer, scaler, device, amp_dtype) -> 
     scaler.step(optimizer)
     scaler.update()
     return loss.detach(), tokens
-
 
 @torch.inference_mode()
 def score(model, batches, device) -> dict:
@@ -141,7 +135,7 @@ def score(model, batches, device) -> dict:
         "accuracy": correct.item() / total_tokens,
     }
 
-
+### Utilitários
 def show_metrics(split: str, metrics: dict) -> None:
     print(
         f"{split}: loss={metrics['loss']:.4f} | perplexidade={metrics['perplexity']:.2f} | "
@@ -149,7 +143,7 @@ def show_metrics(split: str, metrics: dict) -> None:
         flush=True,
     )
 
-
+### Caminhos e dispositivo
 def portable_path(path: Path) -> str:
     """Caminho relativo à raiz do repositório, para retomar o treino em outra máquina."""
     try:
@@ -157,20 +151,18 @@ def portable_path(path: Path) -> str:
     except ValueError:
         return str(path.resolve())
 
-
 def device_name(device: torch.device) -> str:
     if device.type == "cuda":
         return torch.cuda.get_device_name(device)
     return f"{device.type} ({platform.processor() or platform.machine()})"
 
-
 def synchronize(device: torch.device) -> None:
     if device.type == "cuda":
         torch.cuda.synchronize(device)
 
-
+### Benchmark
 def benchmark(model, train_set, valid_set, optimizer, scaler, device, amp_dtype, args) -> None:
-    """Mede segundos por lote em lotes sorteados do treino e estima o tempo de uma época."""
+    """Estima a duração de uma época a partir de alguns lotes."""
     warmup = 3
     batches = make_loader(train_set, args.batch_size, device, args.seed)
     valid_batches = make_loader(valid_set, args.batch_size, device)
@@ -188,7 +180,7 @@ def benchmark(model, train_set, valid_set, optimizer, scaler, device, amp_dtype,
         if index >= warmup:
             times.append(time.monotonic() - start)
 
-    # Validação: mede alguns lotes e extrapola.
+    # Mede alguns lotes de validação e extrapola o tempo total.
     valid_sample = min(10, len(valid_batches))
     start = time.monotonic()
     score(model, (batch for _, batch in zip(range(valid_sample), valid_batches)), device)
@@ -208,19 +200,16 @@ def benchmark(model, train_set, valid_set, optimizer, scaler, device, amp_dtype,
         flush=True,
     )
 
-
+### Treinamento
 def epoch_order(dataset_size: int, seed: int, epoch: int) -> list[int]:
-    """Ordem das janelas na época: depende só de (semente, época), para retomar no meio dela."""
+    """Gera a ordem das janelas a partir da semente e do número da época."""
     return torch.randperm(dataset_size, generator=torch.Generator().manual_seed(seed + epoch)).tolist()
 
-
 def train(args, device: torch.device) -> None:
-    """Treina retomando sozinho do last.pt, se houver (o mesmo comando começa ou continua).
+    """Treina ou retoma automaticamente de `last.pt`.
 
-    Checkpoint a cada --checkpoint-minutes, no fim de cada época e ao parar (sinal do
-    Ctrl+C, SIGTERM/SIGUSR1 ou PRAZO_EPOCH). O last.pt guarda a posição dentro da época, então a retomada
-    continua do lote seguinte ao último salvo. Grava progresso.json a cada checkpoint e
-    CONCLUIDO quando todas as épocas pedidas terminam.
+    Salva checkpoints periodicamente, ao fim de cada época e antes de parar.
+    Registra o lote atual para retomar do ponto salvo e grava `CONCLUIDO` ao terminar.
     """
     latest = args.run_dir / "last.pt"
     best = args.run_dir / "best.pt"
@@ -254,7 +243,7 @@ def train(args, device: torch.device) -> None:
     torch.manual_seed(args.seed)
     if resume:
         checkpoint = load_checkpoint(latest)
-        saved_model = asdict(ModelConfig(**checkpoint["model_config"]))  # checkpoints sem "arch" = Transformer
+        saved_model = asdict(ModelConfig(**checkpoint["model_config"]))  # Sem `arch`, usa Transformer.
         if checkpoint["run_config"] != run_config or saved_model != asdict(requested_model):
             raise ValueError(
                 f"Configuração diferente da salva em {latest}:\n"
@@ -301,9 +290,9 @@ def train(args, device: torch.device) -> None:
         benchmark(model, train_set, valid_set, optimizer, scaler, device, amp_dtype, args)
         return
 
-    # Informações da execução para o relatório (reescritas a cada início ou retomada).
+    # Registra a configuração e o tamanho de cada partição.
     args.run_dir.mkdir(parents=True, exist_ok=True)
-    done_file.unlink(missing_ok=True)  # --epochs maior que o já concluído: continua treinando
+    done_file.unlink(missing_ok=True)  # Permite continuar se --epochs aumentar.
     save_json({
         "device": device_name(device),
         "precision": precision_name(amp_dtype),
@@ -319,8 +308,7 @@ def train(args, device: torch.device) -> None:
     }, args.run_dir / "run_info.json")
 
     def save_state(epoch: int, batch: int, partial: tuple, improved: bool = False) -> None:
-        """epoch = épocas completas; batch = próximo lote da época epoch + 1;
-        partial = (soma da loss, tokens, segundos) já acumulados nessa época."""
+        """Salva o estado do treino e os acumulados da época atual."""
         checkpoint = {
             "version": CHECKPOINT_VERSION,
             "vocab": list(VOCAB),
@@ -353,14 +341,13 @@ def train(args, device: torch.device) -> None:
     epoch = completed_epochs + 1
     while epoch <= args.epochs:
         print(f"Época {epoch}/{args.epochs}" + (f" (a partir do lote {next_batch})" if next_batch else ""), flush=True)
-        # Época retomada: o tempo conta também o trecho feito antes da parada.
+        # Inclui no tempo o trecho executado antes da retomada.
         start = time.monotonic() - partial_seconds
         order = epoch_order(len(train_set), args.seed, epoch)
         batches = DataLoader(
             train_set, batch_size=args.batch_size, sampler=order[next_batch * args.batch_size:],
             collate_fn=collate_windows, pin_memory=device.type == "cuda",
-            # Gerador próprio: sem ele o DataLoader consome o RNG global ao criar o iterador,
-            # e a retomada no meio da época desalinharia o dropout.
+            # Preserva a aleatoriedade do dropout ao retomar no meio da época.
             generator=torch.Generator().manual_seed(args.seed + epoch),
         )
         model.train()
@@ -412,13 +399,13 @@ def train(args, device: torch.device) -> None:
             print("[parada] fim de época salvo; rode o mesmo comando para continuar", flush=True)
             return
 
-    # Épocas de fato completas (podem passar de --epochs se ele foi reduzido depois).
+    # Registra o total de épocas concluídas.
     completed = epoch - 1
     save_json({"epochs": completed, "best_valid_loss": best_loss, "time": time.strftime("%Y-%m-%d %H:%M:%S")},
               done_file)
     print(f"Concluído: {completed} épocas, melhor loss de validação {best_loss:.4f}", flush=True)
 
-
+### Avaliação
 def evaluate(args, device: torch.device) -> dict:
     checkpoint = load_checkpoint(args.checkpoint)
     model = restore_model(checkpoint, device)

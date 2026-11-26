@@ -22,18 +22,16 @@ import argparse, json, logging, math
 
 import matplotlib
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.pyplot as plt
 
-from protocol import GENERATED_DIR, MODELS, REFERENCE_NAME, RESULTS_DIR  # noqa: E402
+from protocol import GENERATED_DIR, MODELS, REFERENCE_NAME, RESULTS_DIR
 
-# A fonte preferida (Segoe UI) pode não existir; o aviso repetido do matplotlib não ajuda.
 logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
 
 ### Nomes
 MODEL_NAMES = {"transformer": "Transformer", "lstm": "LSTM"}
 
 ### Estilo da figura
-# Paleta categórica validada (slots 1 e 2) e tinta/grade recessivas.
 SERIES = {"train": "#2a78d6", "valid": "#eb6834"}
 SURFACE = "#fcfcfb"
 INK_PRIMARY = "#0b0b0b"

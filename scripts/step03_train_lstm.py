@@ -1,15 +1,8 @@
 """
 step03_train_lstm
 
-Treina o LSTM com o mesmo treino do Transformer (step03_train_transformer), para
-comparar as duas arquiteturas: mesmos tokens do step01, mesmas janelas (contexto
-1024, passo 512), mesmo otimizador (AdamW 3e-4, weight decay 0.01, clip 1.0),
-lote 8, semente 42 e mesma seleção do best.pt pela loss de validação. Muda só o
-modelo: 2 camadas LSTM de largura 512 (~4,8 M parâmetros, perto dos ~5,3 M do
-Transformer), saída compartilhada com o embedding. Salva em runs/lstm/.
-
-Padrão de 79 épocas: no treino entregue, a validação do LSTM foi a melhor na
-época 12 e só piorou depois (overfitting), então o treino foi encerrado na 79.
+Treina o LSTM com os mesmos dados e parâmetros de otimização do Transformer.
+Usa duas camadas de largura 512 e salva checkpoints em runs/lstm/.
 
     python scripts/step03_train_lstm.py
     python scripts/step03_train_lstm.py --benchmark 30 --batch-size 32
@@ -28,10 +21,10 @@ RUN_DIR = ROOT / "runs" / "lstm"
 
 sys.path.insert(0, str(ROOT))
 
-from nes_continuation.__main__ import main as cli  # noqa: E402
+from nes_continuation.__main__ import main as cli
 
 ### Configuração
-# Os argumentos da linha de comando vêm depois e, no argparse, o último vence.
+# Argumentos adicionais substituem os padrões definidos pela CLI.
 DEFAULTS = [
     "--run-dir", str(RUN_DIR),
     "--epochs", "79",

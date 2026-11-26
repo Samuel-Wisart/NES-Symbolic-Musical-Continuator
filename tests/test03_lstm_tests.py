@@ -1,7 +1,7 @@
 """
 test03_lstm_tests
 
-Testes do LSTM (não precisam do dataset preparado; rodam em segundos na CPU).
+Testa o LSTM sem exigir o dataset preparado.
 """
 
 ### Imports
@@ -55,7 +55,7 @@ def test_tied_output():
     assert not any("output" in name and "weight" in name and "norm" not in name for name in names), names
 
 def test_config_and_build():
-    """arch escolhe a classe; configurações antigas, sem arch, continuam sendo Transformer."""
+    """arch escolhe a classe. Configurações antigas, sem arch, continuam sendo Transformer."""
     assert isinstance(build_model(ModelConfig(context=16, width=16, heads=4, layers=1, arch="lstm")), NESLSTM)
     assert isinstance(build_model(ModelConfig(context=16, width=16, heads=4, layers=1)), NESTransformer)
     old = {"context": 16, "width": 16, "heads": 4, "layers": 1, "dropout": 0.1}

@@ -1,28 +1,33 @@
-"""Comandos para treinar, avaliar e gerar continuações musicais."""
+"""
+__main__
 
-# Tratadores de USR1/TERM/INT antes dos imports pesados (ver stop.py).
+Comandos para treinar, avaliar e gerar continuações musicais.
+"""
+
+### Tratamento de sinais
+# Instala os tratadores de sinal antes dos imports pesados.
 from nes_continuation.stop import install_handlers
 
 install_handlers()
 
-import argparse  # noqa: E402
-import math  # noqa: E402
-from pathlib import Path  # noqa: E402
+### Imports
+import argparse
+import math
+from pathlib import Path
 
-import torch  # noqa: E402
+import torch
 
-from nes_continuation.model import ARCHITECTURES, ModelConfig  # noqa: E402
-from nes_continuation.representation import TOKENS_DIR  # noqa: E402
-from nes_continuation.sampling import generate  # noqa: E402
-from nes_continuation.training import evaluate, train  # noqa: E402
+from nes_continuation.model import ARCHITECTURES, ModelConfig
+from nes_continuation.representation import TOKENS_DIR
+from nes_continuation.sampling import generate
+from nes_continuation.training import evaluate, train
 
-
+### Argumentos
 def positive_int(value: str) -> int:
     number = int(value)
     if number < 1:
         raise argparse.ArgumentTypeError("use um inteiro positivo")
     return number
-
 
 def nonnegative_int(value: str) -> int:
     number = int(value)
@@ -30,13 +35,11 @@ def nonnegative_int(value: str) -> int:
         raise argparse.ArgumentTypeError("use um inteiro não negativo")
     return number
 
-
 def nonnegative_float(value: str) -> float:
     number = float(value)
     if not math.isfinite(number) or number < 0:
         raise argparse.ArgumentTypeError("use um número finito não negativo")
     return number
-
 
 def positive_float(value: str) -> float:
     number = nonnegative_float(value)
@@ -44,7 +47,7 @@ def positive_float(value: str) -> float:
         raise argparse.ArgumentTypeError("use um número positivo")
     return number
 
-
+### Execução
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -114,7 +117,7 @@ def main() -> None:
     if (device == "cuda" and not cuda) or (device == "mps" and not mps):
         parser.error(f"{device} indisponível nesta instalação do PyTorch")
     torch.set_num_threads(args.threads or min(4, torch.get_num_threads()))
-    # TF32 nas multiplicações FP32 (avaliação) em GPUs que suportam.
+# Ativa TF32 nas GPUs compatíveis para acelerar operações FP32.
     torch.set_float32_matmul_precision("high")
     try:
         args.handler(args, torch.device(device))

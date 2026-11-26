@@ -1,1 +1,5 @@
-"""Componentes para continuação musical no NES-MDB."""
+"""
+__init__
+
+Componentes para gerar continuações musicais com o NES-MDB.
+"""

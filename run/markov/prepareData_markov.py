@@ -1,7 +1,6 @@
 """
 prepareData_markov
 
- 
 Prepara o NES-MDB e converte cada música MIDI para tokens MIDI-Like.
 """
 
@@ -26,9 +25,7 @@ SPLITS = ("train", "valid", "test")
 CHANNELS = ("p1", "p2", "tr", "no")
 CHANNEL_ORDER = {channel: index for index, channel in enumerate(CHANNELS)}
 
-# Recomendado pelos autores caso algum MIDI falhe ao carregar.
-# No README do dataset eles informam que:
-# If loading MIDI file fails, try pretty_midi.pretty_midi.MAX_TICK = 1e10
+# Aumenta o limite do pretty_midi para carregar arquivos MIDI longos.
 pretty_midi.pretty_midi.MAX_TICK = 1e10
 
 ### Representação MIDI-Like
@@ -36,7 +33,7 @@ TIME_RESOLUTION_HZ = 64
 SHIFT_MAX = 128
 
 ### Vocabulário
-# PAD auxilia batches; BOS e EOS delimitam cada música.
+# PAD auxilia batches. BOS e EOS delimitam cada música.
 VOCAB = (
     ["PAD", "BOS", "EOS"]
     + [f"TIME_SHIFT_{shift}" for shift in range(1, SHIFT_MAX + 1)]
@@ -74,9 +71,8 @@ def extract_dataset():
                 shutil.copyfileobj(source, target)
 
 def get_midi_files():
-    """Lista os MIDI de treino, validação e teste, ja splitados previamente."""
+    """Lista os MIDI previamente separados em treino, validação e teste."""
     return {split: sorted((MIDI_DIR / split).glob("*.mid")) for split in SPLITS}
-
 
 ### Leitura e representação
 def read_notes(path):
@@ -128,7 +124,6 @@ def encode(notes, rate_hz=TIME_RESOLUTION_HZ):
 
     ids.append(TO_ID["EOS"])
     return np.asarray(ids, dtype=np.uint16)
-
 
 def decode(ids, rate_hz=TIME_RESOLUTION_HZ):
     """Converte uma sequência de tokens novamente para notas."""

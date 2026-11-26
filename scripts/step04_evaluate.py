@@ -11,14 +11,13 @@ Perplexidade = exp(média da entropia cruzada, em log natural, de todos os
 tokens depois do BOS em cada música de teste), como no scripts/protocol.py.
 Cada token é pontuado uma única vez. A medida principal usa janelas
 deslizantes (passo = contexto / 2), para que todo token tenha pelo menos meio
-contexto de histórico; a medida com janelas disjuntas (passo = contexto, igual
+contexto de histórico. A medida com janelas disjuntas (passo = contexto, igual
 à validação durante o treino) também é salva.
 
 Usa runs/<modelo>/best.pt (se o modelo foi treinado nesta máquina) ou o modelo
-entregue em resultados/<modelo>/modelo.pt. Salva resultados/<modelo>/test_metrics.json;
-quando avalia o best.pt do treino, também copia o histórico de treino
-(train_history.json), as informações da execução (run_info.json) e exporta o
-modelo sem o estado do otimizador (modelo.pt) para resultados/<modelo>/.
+entregue em resultados/<modelo>/modelo.pt. Salva as métricas em
+resultados/<modelo>/test_metrics.json. Se usar best.pt, também copia o histórico
+e as informações da execução e exporta os pesos sem o estado do otimizador.
 """
 
 ### Imports
@@ -28,14 +27,14 @@ import argparse, json, shutil, sys, time
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import torch  # noqa: E402
-from torch.utils.data import DataLoader  # noqa: E402
+import torch
+from torch.utils.data import DataLoader
 
-from nes_continuation.data import ScoringWindows, collate_scoring  # noqa: E402
-from nes_continuation.training import (  # noqa: E402
+from nes_continuation.data import ScoringWindows, collate_scoring
+from nes_continuation.training import (
     device_name, export_model, load_checkpoint, portable_path, restore_model, score, show_metrics,
 )
-from protocol import MODELS, RESULTS_DIR, TEST_SONGS, TEST_TARGET_TOKENS, checkpoint_path  # noqa: E402
+from protocol import MODELS, RESULTS_DIR, TEST_SONGS, TEST_TARGET_TOKENS, checkpoint_path
 
 ### Avaliação
 def evaluate(model, split, stride, batch_size, device, limit=None):

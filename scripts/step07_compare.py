@@ -1,24 +1,13 @@
 """
 step07_compare
 
-Compara os modelos entregues em resultados/ e gera material para a análise:
+Compara as métricas dos modelos e as distribuições das amostras geradas.
 
     python scripts/step07_compare.py
 
-Entradas:
-    resultados/<modelo>/{test_metrics.json, train_history.json, run_info.json}
-        (todo subdiretório de resultados/ que tiver test_metrics.json entra)
-    resultados/amostras/<conjunto>/*.npz
-        (cada conjunto de continuações, inclusive a referência real)
-Saídas:
-    resultados/comparacao.md          tabelas de métricas e de estatísticas das amostras
-    resultados/comparacao.json        os mesmos números, para outras análises
-    resultados/curvas_validacao.png   loss de validação por época de cada modelo
-    resultados/boxplots_amostras.png  distribuições de três métricas das continuações
-    resultados/boxplots_musicais.png distribuições de polifonia, entropia, escala e groove
-
-As estatísticas das amostras olham só a continuação (depois dos PROMPT_SECONDS
-do prompt), decodificada com o decode do step01, e são médias por música.
+Lê os JSONs de resultados/<modelo>/ e as amostras em resultados/amostras/.
+Gera tabelas e gráficos em resultados/. As métricas das amostras consideram
+somente a continuação após o prompt.
 """
 
 ### Imports
@@ -30,17 +19,17 @@ sys.path.insert(0, str(ROOT))
 
 import matplotlib
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
+import matplotlib.pyplot as plt
+import numpy as np
 
-from nes_continuation.representation import CHANNELS, TIME_RESOLUTION_HZ, decode, duration_steps  # noqa: E402
-import protocol  # noqa: E402
+from nes_continuation.representation import CHANNELS, TIME_RESOLUTION_HZ, decode, duration_steps
+import protocol
 
 logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
 
 ### Nomes e cores
 NAMES = {"transformer": "Transformer", "lstm": "LSTM", "markov": "Markov", protocol.REFERENCE_NAME: "Referência (real)"}
-# Cor fixa por modelo (outros modelos usam as cores restantes, na ordem).
+# Cores dos modelos na ordem de exibição.
 COLORS = {"transformer": "#2a78d6", "lstm": "#eb6834", "markov": "#1e9e6a"}
 EXTRA_COLORS = ["#8a5cc2", "#c2406e"]
 ORDER = ["transformer", "lstm", "markov"]
@@ -63,7 +52,7 @@ SURFACE, INK_PRIMARY, INK_SECONDARY, INK_MUTED, GRID, AXIS = (
 MELODIC = ("p1", "p2", "tr")
 MAJOR_SCALE = (0, 2, 4, 5, 7, 9, 11)
 NATURAL_MINOR_SCALE = (0, 2, 3, 5, 7, 8, 10)
-# Compasso de referência de 4/4 a 120 BPM para os tokens em tempo absoluto.
+# Usa blocos de 2 s como compassos de referência a 120 BPM.
 GROOVE_BLOCK_STEPS = 2 * TIME_RESOLUTION_HZ
 
 ### Leitura
@@ -195,7 +184,7 @@ def load_samples():
         if not paths:
             continue
         sets[folder.name] = [continuation_stats(path) for path in paths]
-    # Modelos na ordem de ORDER e a referência por último.
+    # Exibe modelos primeiro e a referência humana por último.
     rank = lambda key: (key == protocol.REFERENCE_NAME, ORDER.index(key) if key in ORDER else len(ORDER), key)
     return dict(sorted(sets.items(), key=lambda item: rank(item[0])))
 

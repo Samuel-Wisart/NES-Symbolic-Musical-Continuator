@@ -1,11 +1,17 @@
-"""Gera continuações com Markov de ordem 1 usando o protocolo compartilhado."""
+"""
+generate_markov
 
+Gera continuações com Markov de ordem 1 usando o protocolo compartilhado.
+"""
+
+### Imports
 from pathlib import Path
 import json
 import sys
 
 import numpy as np
 
+### Caminhos e imports locais
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS_DIR = ROOT / "scripts"
 sys.path.insert(0, str(ROOT))
@@ -24,11 +30,13 @@ from nes_continuation.representation import (
 from nes_continuation.sampling import allowed_tokens, save_generation
 import protocol
 
+### Arquivos de entrada e saída
 PROCESSED = ROOT / "data" / "processed" / "nesmdb"
 MATRIX_PATH = PROCESSED / "markov_order1.npz"
 OUTPUT_DIR = protocol.GENERATED_DIR / "markov"
 
 
+### Distribuição de amostragem
 def sample_distribution(probabilities, mask, temperature, top_k, rng):
     """Amostra somente entre tokens válidos com probabilidade positiva."""
     if temperature <= 0:
@@ -51,7 +59,7 @@ def sample_distribution(probabilities, mask, temperature, top_k, rng):
     weights /= weights.sum()
     return int(rng.choice(valid_ids, p=weights))
 
-
+### Geração
 def sample_markov(
     probs,
     global_probs,
@@ -105,7 +113,7 @@ def sample_markov(
         "stop_reason": "limite de duração",
     }
 
-
+### Protocolo
 def settings():
     names = (
         "PROMPT_SECONDS",
@@ -118,7 +126,7 @@ def settings():
     )
     return {name.lower(): getattr(protocol, name) for name in names}
 
-
+### Execução
 def main():
     data = np.load(MATRIX_PATH)
     probs = data["probs"]

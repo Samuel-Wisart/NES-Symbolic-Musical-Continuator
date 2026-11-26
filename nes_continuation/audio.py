@@ -1,5 +1,10 @@
-"""Prévia chiptune de um MIDI exportado, sem banco de sons externo."""
+"""
+audio
 
+Gera uma prévia chiptune de um MIDI exportado, sem banco de sons externo.
+"""
+
+### Imports
 import math
 import random
 import sys
@@ -9,11 +14,13 @@ from pathlib import Path
 
 import mido
 
+### Configuração
 SAMPLE_RATE = 24_000
-# Canal MIDI -> voz (0 = p1, 1 = p2, 2 = tr, 3 = no), como o representation.write_midi exporta.
+# Mapeia os canais MIDI às vozes p1, p2, tr e no.
 CHANNEL_TO_VOICE = {0: 0, 1: 1, 2: 2, 9: 3}
 
 
+### Renderização
 def render_wav(midi_path: Path, wav_path: Path) -> None:
     midi = mido.MidiFile(midi_path)
     audio = array("f", [0.0]) * max(1, math.ceil(midi.length * SAMPLE_RATE))
