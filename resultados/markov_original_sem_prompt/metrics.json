@@ -1,0 +1,9 @@
+{
+  "model": "markov_original_sem_prompt",
+  "order": 1,
+  "smoothing": 0.01,
+  "validation_perplexity": 70.81398010253906,
+  "test_perplexity": 72.26594543457031,
+  "validation_unigram_perplexity": 182.47314453125,
+  "test_unigram_perplexity": 184.1224365234375
+}

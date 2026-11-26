@@ -1,0 +1,4 @@
+Vocabulário: 1155 tokens
+Treinado em 4500 músicas
+Perplexidade (validação): Markov=70.81 | unigrama=182.47
+Matriz salva em /mnt/c/_My folders/Dev/NES-Symbolic-Musical-Continuator/data/processed/nesmdb/markov_order1.npz
