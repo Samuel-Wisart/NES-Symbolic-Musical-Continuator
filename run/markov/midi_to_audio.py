@@ -164,7 +164,7 @@ def main(input_dir=DEFAULT_INPUT, output_dir=DEFAULT_OUTPUT, sample_rate=44100,
             if mp3:
                 wav_para_mp3(wav_path)
 
-            print(f"[ok]      {midi_path.name} → {wav_path.name} "
+            print(f"[ok]      {midi_path.name} -> {wav_path.name} "
                   f"({len(audio) / sample_rate:.1f}s)")
             ok += 1
         except Exception as exc:

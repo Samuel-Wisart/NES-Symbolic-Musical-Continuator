@@ -12,7 +12,7 @@ Projeto de continuação musical com o dataset [NES-MDB](https://github.com/chri
 - `resultados/`: reúne métricas, gráficos, modelos exportados e arquivos gerados.
 - `resultados/transformer/` e `resultados/lstm/`: guardam o modelo exportado e as métricas de cada modelo neural.
 - `resultados/amostras/`: organiza continuações e referências por sistema, com MIDI, tokens e os WAVs gerados.
-- `resultados/musicasGeradas/`: contém um conjunto adicional de arquivos MIDI do Transformer, LSTM e Markov.
+- `resultados/musicasGeradas/`: contém cinco pares de arquivos MIDI e WAV do Transformer, LSTM e Markov, prontos para entrega.
 - `run/markov/`: contém o treinamento e a geração do baseline de Markov, além das ferramentas de preparação e síntese MIDI.
 - `scripts/`: reúne os passos de preparação, análise, treino, avaliação, geração e comparação dos resultados.
 - `tests/`: contém os testes da representação, dos modelos e da integração do Markov.
@@ -58,6 +58,14 @@ Treine e gere com o baseline de Markov:
 ```bash
 python run/markov/train_markov.py
 python run/markov/generate_markov.py
+```
+
+Para sintetizar os cinco MIDI selecionados de cada sistema e salvar cada WAV junto ao seu MIDI:
+
+```bash
+python run/markov/midi_to_audio.py --input-dir resultados/musicasGeradas/transformers --output-dir resultados/musicasGeradas/transformers
+python run/markov/midi_to_audio.py --input-dir resultados/musicasGeradas/lstm --output-dir resultados/musicasGeradas/lstm
+python run/markov/midi_to_audio.py --input-dir resultados/musicasGeradas/markov --output-dir resultados/musicasGeradas/markov
 ```
 
 Gere os relatórios e gráficos a partir dos resultados:
