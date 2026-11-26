@@ -86,7 +86,7 @@ Os testes do Transformer e de Markov precisam do dataset preparado.
 | Integrante | Contribuição |
 |---|---|
 | Lucas Rezende | Organização do Dataset, Implementação da representação e seus testes, Auxilio no desenvolvimento do modelo baseline (Markov), Relatório |
-| Luiza Sodré | Auxilio no desenvolvimento do Transformer, Algumas métricas, Relatório |
+| Luiza Sodré | Auxilio no desenvolvimento dos modelos, Algumas métricas, Relatório |
 | Samuel | Definição de quais modelos usar (Transformer e LSTM), Treinamento desses modelos |
 | Wilian | Auxilio no desenvolvimento do modelo baseline (Markov) usado e na criação do artigo final. |
 
